@@ -14,4 +14,8 @@ public interface AuditRepository extends MongoRepository<Audit, String> {
     Page<Audit> findByEntityType(Audit.EntityType entityType, Pageable pageable);
     
     Page<Audit> findByEntityId(String entityId, Pageable pageable);
+    
+    Page<Audit> findByActionType(Audit.ActionType actionType, Pageable pageable);
+    
+    Page<Audit> findByUserIdAndEntityType(String userId, Audit.EntityType entityType, Pageable pageable);
 } 

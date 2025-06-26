@@ -1,5 +1,6 @@
 package com.breakupstories.model;
 
+import com.breakupstories.enums.LANGUAGE;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,7 +27,8 @@ public class Story {
     private String title;
     private String audioUrl;
     private String shareLink;
-    private Integer viewCount;
+    private LANGUAGE audioLanguage;
+    private Long viewCount;
     private StoryStatus status;
     
     private List<Content> contents;
@@ -41,6 +43,6 @@ public class Story {
     private LocalDateTime updatedAt;
     
     public enum StoryStatus {
-        PROCESSING, ACTIVE, DISABLED
+        PROCESSING, ACTIVE, DISABLED,REJECTED
     }
 } 

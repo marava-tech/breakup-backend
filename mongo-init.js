@@ -1,0 +1,70 @@
+// MongoDB initialization script for Breakup Stories application
+// This script runs when the MongoDB container starts for the first time
+
+// Switch to the breakup_stories database
+db = db.getSiblingDB('breakup_stories');
+
+// Create a user for the application with read/write permissions
+db.createUser({
+  user: 'breakup_user',
+  pwd: 'breakup_password',
+  roles: [
+    {
+      role: 'readWrite',
+      db: 'breakup_stories'
+    }
+  ]
+});
+
+// Create collections with proper indexes
+db.createCollection('users');
+db.createCollection('stories');
+db.createCollection('likes');
+db.createCollection('comments');
+db.createCollection('bookmarks');
+db.createCollection('emotions');
+db.createCollection('keywords');
+db.createCollection('feedbacks');
+db.createCollection('audits');
+db.createCollection('default_configs');
+
+// Create indexes for better performance
+db.users.createIndex({ "email": 1 }, { unique: true });
+db.users.createIndex({ "createdAt": -1 });
+
+db.stories.createIndex({ "userId": 1 });
+db.stories.createIndex({ "status": 1 });
+db.stories.createIndex({ "audioLanguage": 1 });
+db.stories.createIndex({ "viewCount": -1 });
+db.stories.createIndex({ "createdAt": -1 });
+
+db.likes.createIndex({ "userId": 1 });
+db.likes.createIndex({ "storyId": 1 });
+db.likes.createIndex({ "userId": 1, "storyId": 1 }, { unique: true });
+
+db.comments.createIndex({ "storyId": 1 });
+db.comments.createIndex({ "userId": 1 });
+db.comments.createIndex({ "parentId": 1 });
+db.comments.createIndex({ "createdAt": -1 });
+
+db.bookmarks.createIndex({ "userId": 1 });
+db.bookmarks.createIndex({ "storyId": 1 });
+db.bookmarks.createIndex({ "userId": 1, "storyId": 1 }, { unique: true });
+
+db.emotions.createIndex({ "storyId": 1 });
+db.keywords.createIndex({ "storyId": 1 });
+
+db.feedbacks.createIndex({ "userId": 1 });
+db.feedbacks.createIndex({ "createdAt": -1 });
+
+db.audits.createIndex({ "userId": 1 });
+db.audits.createIndex({ "entityType": 1 });
+db.audits.createIndex({ "entityId": 1 });
+db.audits.createIndex({ "createdAt": -1 });
+
+db.default_configs.createIndex({ "key": 1 }, { unique: true });
+
+print('MongoDB initialization completed successfully!');
+print('Database: breakup_stories');
+print('User: breakup_user');
+print('Collections and indexes created.'); 

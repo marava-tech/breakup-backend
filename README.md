@@ -87,23 +87,24 @@ src/main/java/com/breakupstories/
 ### Authentication & Security
 - **JWT Tokens**: Stateless authentication with JWT
 - **Spring Security**: Comprehensive security configuration
-- **Role-based Access**: Admin and user role management
-- **Frontend OAuth Integration**: Ready for frontend OAuth2 implementation
+- **OTP-based Authentication**: Email-based OTP verification for secure login and registration
 
 ### API Endpoints
 
 #### Authentication
-- `POST /api/auth/login` - Login with OAuth data from frontend
+- `POST /api/auth/send-otp-registration` - Send OTP for new user registration
+- `POST /api/auth/send-otp-login` - Send OTP for existing user login
+- `POST /api/auth/verify-otp-registration` - Verify OTP and create new user account
+- `POST /api/auth/verify-otp-login` - Verify OTP and login existing user
 - `GET /api/auth/me` - Get current user information
 - `POST /api/auth/refresh` - Refresh JWT token
 
 #### Users
-- `POST /api/users` - Create a new user
-- `GET /api/users` - Get paginated users (Admin only)
+- `GET /api/users` - Get paginated users
 - `GET /api/users/{id}` - Get user by ID
 - `GET /api/users/email/{email}` - Get user by email
 - `PUT /api/users/{id}` - Update user
-- `DELETE /api/users/{id}` - Delete user (Admin only)
+- `DELETE /api/users/{id}` - Delete user
 
 #### Stories
 - `POST /api/stories` - Create a new story (Authenticated)
@@ -119,7 +120,7 @@ src/main/java/com/breakupstories/
 - `PUT /api/feedbacks/{feedbackId}` - Update feedback (Owner only)
 - `DELETE /api/feedbacks/{feedbackId}` - Delete feedback (Owner only)
 
-#### Audits (Admin Only)
+#### Audits
 - `POST /api/audits` - Create a new audit entry
 - `GET /api/audits` - Get paginated audit entries
 - `GET /api/audits/user/{userId}` - Get audits by user
@@ -139,7 +140,11 @@ src/main/java/com/breakupstories/
 Create a `.env` file or set environment variables:
 ```bash
 JWT_SECRET=your-super-secret-jwt-key
+GMAIL_USERNAME=your-email@gmail.com
+GMAIL_APP_PASSWORD=your-16-character-app-password
 ```
+
+**Note**: For email configuration, see `EMAIL_SETUP.md` for detailed instructions on setting up Gmail for OTP emails.
 
 ### Running with Docker MongoDB
 ```bash
@@ -154,11 +159,12 @@ mvn spring-boot:run
 ### Running Locally
 1. **Install MongoDB** locally or use Docker
 2. **Clone the repository**
-3. **Build the project**:
+3. **Configure email settings** (see `EMAIL_SETUP.md`)
+4. **Build the project**:
    ```bash
    mvn clean install
    ```
-4. **Run the application**:
+5. **Run the application**:
    ```bash
    mvn spring-boot:run
    ```
@@ -171,11 +177,63 @@ Once the application is running, you can access:
 
 ## 🔐 Authentication Flow
 
-### Frontend OAuth2 Integration
-1. Frontend implements Google OAuth2 flow
-2. After successful OAuth2, frontend calls `/api/auth/login` with user data
-3. Backend creates/updates user and returns JWT token
-4. Frontend stores JWT token and uses it for authenticated requests
+### OTP-based Authentication
+1. **Registration Flow**:
+   - User calls `/api/auth/send-otp-registration` with email
+   - System sends OTP to email
+   - User calls `/api/auth/verify-otp-registration` with OTP and user details
+   - System creates user account and returns JWT token
+
+2. **Login Flow**:
+   - User calls `/api/auth/send-otp-login` with email
+   - System sends OTP to email
+   - User calls `/api/auth/verify-otp-login` with OTP
+   - System returns JWT token
+
+3. **JWT Token Usage**:
+   - Frontend stores JWT token and uses it for authenticated requests
+   - Include JWT token in Authorization header: `Authorization: Bearer <your-jwt-token>`
+
+### Test Bypass Authentication (Development Only)
+For testing purposes, you can bypass OTP authentication using special headers:
+
+- **X-BS-Authorization**: Set to `true` to enable test bypass
+- **X-BS-UserId**: Provide the user ID to authenticate as
+
+**Example**:
+```bash
+curl -H "X-BS-Authorization: true" \
+     -H "X-BS-UserId: user-id-here" \
+     http://localhost:8080/api/auth/me
+```
+
+**Note**: This feature should only be used in development/testing environments and should be disabled in production.
+
+### Admin Authorization (Development Only)
+For testing admin-only endpoints, you can use the admin authorization header:
+
+- **X-BS-Admin**: Set to `true` to grant admin privileges to the authenticated user
+
+**Example**:
+```bash
+# Access admin-only endpoints with admin privileges
+curl -H "X-BS-Authorization: true" \
+     -H "X-BS-UserId: user-id-here" \
+     -H "X-BS-Admin: true" \
+     http://localhost:8080/api/audits
+
+# Or with JWT token
+curl -H "Authorization: Bearer <your-jwt-token>" \
+     -H "X-BS-Admin: true" \
+     http://localhost:8080/api/users
+```
+
+**Admin-only Endpoints**:
+- All `/api/audits/*` endpoints
+- All `/api/configs/*` endpoints  
+- All `/api/users/*` endpoints
+
+**Note**: This feature should only be used in development/testing environments and should be disabled in production.
 
 ### JWT Token Usage
 Include the JWT token in the Authorization header:
@@ -192,11 +250,39 @@ mvn test
 
 ## 📝 Example Usage
 
-### Login with OAuth Data
+### Registration Flow
 ```bash
-curl -X POST "http://localhost:8080/api/auth/login" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "email=user@example.com&name=John%20Doe&profileImageUrl=https://example.com/avatar.jpg"
+# 1. Send OTP for registration
+curl -X POST http://localhost:8080/api/auth/send-otp-registration \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+
+# 2. Verify OTP and create account
+curl -X POST http://localhost:8080/api/auth/verify-otp-registration \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "otp": "123456",
+    "name": "John Doe",
+    "gender": "Male",
+    "age": 25
+  }'
+```
+
+### Login Flow
+```bash
+# 1. Send OTP for login
+curl -X POST http://localhost:8080/api/auth/send-otp-login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com"}'
+
+# 2. Verify OTP and login
+curl -X POST http://localhost:8080/api/auth/verify-otp-login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "otp": "123456"
+  }'
 ```
 
 ### Create a Story (with JWT)
@@ -230,15 +316,53 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
   http://localhost:8080/api/auth/me
 ```
 
-### Create User
+### Update User
 ```bash
-curl -X POST http://localhost:8080/api/users \
+curl -X PUT http://localhost:8080/api/users/{userId} \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your-jwt-token>" \
   -d '{
-    "name": "John Doe",
+    "name": "John Doe Updated",
     "email": "john@example.com",
-    "profileImageUrl": "https://example.com/avatar.jpg"
+    "gender": "Male",
+    "age": 26
   }'
+```
+
+### Test Bypass Authentication (Development Only)
+```bash
+# Get current user using test bypass
+curl -H "X-BS-Authorization: true" \
+     -H "X-BS-UserId: user-id-here" \
+     http://localhost:8080/api/auth/me
+
+# Create a story using test bypass
+curl -X POST http://localhost:8080/api/stories \
+  -H "Content-Type: application/json" \
+  -H "X-BS-Authorization: true" \
+  -H "X-BS-UserId: user-id-here" \
+  -d '{
+    "title": "Test Story",
+    "contents": [
+      {
+        "type": "TEXT",
+        "data": "This is a test story",
+        "orderIndex": 1
+      }
+    ]
+  }'
+
+# Access admin endpoints using admin authorization
+curl -H "X-BS-Authorization: true" \
+     -H "X-BS-UserId: user-id-here" \
+     -H "X-BS-Admin: true" \
+     http://localhost:8080/api/audits
+
+# Get all users with admin privileges
+curl -H "X-BS-Authorization: true" \
+     -H "X-BS-UserId: user-id-here" \
+     -H "X-BS-Admin: true" \
+     http://localhost:8080/api/users
 ```
 
 ### Create Feedback
@@ -265,11 +389,11 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
   "http://localhost:8080/api/feedbacks/story/story-id-here?page=0&size=10"
 ```
 
-### Create Audit Entry (Admin Only)
+### Create Audit Entry
 ```bash
 curl -X POST http://localhost:8080/api/audits \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <admin-jwt-token>" \
+  -H "Authorization: Bearer <your-jwt-token>" \
   -d '{
     "userId": "user-id-here",
     "entityType": "STORY",
@@ -278,9 +402,9 @@ curl -X POST http://localhost:8080/api/audits \
   }'
 ```
 
-### Get Audits by Entity Type (Admin Only)
+### Get Audits by Entity Type
 ```bash
-curl -H "Authorization: Bearer <admin-jwt-token>" \
+curl -H "Authorization: Bearer <your-jwt-token>" \
   "http://localhost:8080/api/audits/entity-type/STORY?page=0&size=10"
 ```
 
@@ -293,6 +417,7 @@ The application uses `application.yml` for configuration. Key settings:
 - **CORS**: Enabled for all origins
 - **Swagger**: Available at `/swagger-ui.html`
 - **JWT**: Token generation and validation
+- **Email**: Gmail SMTP for OTP delivery
 
 ## 🏗️ Architecture
 
@@ -304,7 +429,7 @@ The project follows clean architecture principles:
 - **DTOs**: Data transfer objects for API contracts
 - **Models**: MongoDB document entities
 - **Config**: Global configuration and beans
-- **Security**: JWT authentication ready for frontend OAuth2
+- **Security**: JWT authentication with OTP-based verification
 
 ## 📄 License
 

@@ -1,55 +1,132 @@
 package com.breakupstories.controller;
 
-import com.breakupstories.dto.AuthResponse;
-import com.breakupstories.dto.UserRequest;
-import com.breakupstories.dto.UserResponse;
+import com.breakupstories.dto.*;
+import com.breakupstories.exception.InvalidOTPException;
 import com.breakupstories.service.JwtService;
+import com.breakupstories.service.OTPService;
 import com.breakupstories.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@Tag(name = "Authentication", description = "Authentication and authorization APIs")
+@Slf4j
+@Tag(name = "Authentication", description = "OTP-based authentication and authorization APIs")
 public class AuthController {
     
     private final UserService userService;
     private final JwtService jwtService;
+    private final OTPService otpService;
     
-    @PostMapping("/login")
-    @Operation(summary = "Login with OAuth token", description = "Login using OAuth token from frontend and get JWT")
-    public ResponseEntity<AuthResponse> login(@RequestParam String email, 
-                                            @RequestParam String name, 
-                                            @RequestParam(required = false) String profileImageUrl) {
-        try {
-            // Create or update user from OAuth data
-            UserResponse user = userService.createUserFromOAuth(email, name, profileImageUrl);
-            
-            // Generate JWT token
-            UserDetails userDetails = userService.loadUserByUsername(email);
-            String token = jwtService.generateToken(userDetails);
-            
-            AuthResponse response = AuthResponse.of(token, user);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+    @PostMapping("/send-otp-registration")
+    @Operation(summary = "Send OTP for registration", description = "Send OTP to email for new user registration")
+    public ResponseEntity<OtpResponse> sendOtpForRegistration(@Valid @RequestBody OtpRequest request) {
+        log.info("Sending OTP for registration to email: {}", request.getEmail());
+        
+        boolean success = userService.sendOtpForRegistration(request.getEmail());
+        
+        OtpResponse response = OtpResponse.builder()
+                .message("OTP sent successfully to your email")
+                .success(success)
+                .build();
+        
+        log.info("OTP sent successfully for registration to email: {}", request.getEmail());
+        return ResponseEntity.ok(response);
+    }
+    
+    @PostMapping("/send-otp-login")
+    @Operation(summary = "Send OTP for login", description = "Send OTP to email for existing user login")
+    public ResponseEntity<OtpResponse> sendOtpForLogin(@Valid @RequestBody OtpRequest request) {
+        log.info("Sending OTP for login to email: {}", request.getEmail());
+        
+        boolean success = userService.sendOtpForLogin(request.getEmail());
+        
+        OtpResponse response = OtpResponse.builder()
+                .message("OTP sent successfully to your email")
+                .success(success)
+                .build();
+        
+        log.info("OTP sent successfully for login to email: {}", request.getEmail());
+        return ResponseEntity.ok(response);
+    }
+    
+    @PostMapping("/verify-otp-registration")
+    @Operation(summary = "Verify OTP and register user", description = "Verify OTP and create new user account")
+    public ResponseEntity<AuthResponse> verifyOtpAndRegister(@Valid @RequestBody RegistrationRequest request) {
+        log.info("Verifying OTP for registration with email: {}", request.getEmail());
+        
+        // Verify OTP first
+        boolean otpValid = otpService.verifyOtp(request.getEmail(), request.getOtp());
+        if (!otpValid) {
+            log.error("OTP verification failed for registration with email: {}", request.getEmail());
+            throw new InvalidOTPException("Invalid OTP provided for registration");
         }
+        
+        // Create user request from registration request
+        UserRequest userRequest = UserRequest.builder()
+                .name(request.getName())
+                .email(request.getEmail())
+                .gender(request.getGender())
+                .age(request.getAge())
+                .build();
+        
+        // Create user after OTP verification
+        UserResponse user = userService.createUserAfterOtpVerification(userRequest);
+        
+        // Generate JWT token
+        UserDetails userDetails = userService.loadUserByUsername(user.getEmail());
+        String token = jwtService.generateToken(userDetails);
+        
+        AuthResponse response = AuthResponse.of(token, user);
+        
+        log.info("User registered successfully with email: {}", request.getEmail());
+        return ResponseEntity.ok(response);
+    }
+    
+    @PostMapping("/verify-otp-login")
+    @Operation(summary = "Verify OTP and login", description = "Verify OTP and login existing user")
+    public ResponseEntity<AuthResponse> verifyOtpAndLogin(@Valid @RequestBody OtpVerificationRequest request) {
+        log.info("Verifying OTP for login with email: {}", request.getEmail());
+        
+        // Verify OTP first
+        boolean otpValid = otpService.verifyOtp(request.getEmail(), request.getOtp());
+        if (!otpValid) {
+            log.error("OTP verification failed for login with email: {}", request.getEmail());
+            throw new InvalidOTPException("Invalid OTP provided for login");
+        }
+        
+        // Get user and generate JWT token
+        UserResponse user = userService.getUserByEmail(request.getEmail());
+        UserDetails userDetails = userService.loadUserByUsername(request.getEmail());
+        String token = jwtService.generateToken(userDetails);
+        
+        AuthResponse response = AuthResponse.of(token, user);
+        
+        log.info("User logged in successfully with email: {}", request.getEmail());
+        return ResponseEntity.ok(response);
     }
     
     @GetMapping("/me")
     @Operation(summary = "Get current user", description = "Get the current authenticated user's information")
     public ResponseEntity<UserResponse> getCurrentUser(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).build();
+            log.warn("Unauthenticated access attempt to /me endpoint");
+            throw new BadCredentialsException("User not authenticated");
         }
         
         String email = authentication.getName();
+        log.info("Getting current user information for email: {}", email);
+        
         UserResponse user = userService.getUserByEmail(email);
         return ResponseEntity.ok(user);
     }
@@ -58,7 +135,8 @@ public class AuthController {
     @Operation(summary = "Refresh token", description = "Refresh the JWT token")
     public ResponseEntity<AuthResponse> refreshToken(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).build();
+            log.warn("Unauthenticated access attempt to /refresh endpoint");
+            throw new BadCredentialsException("User not authenticated");
         }
         
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
@@ -66,6 +144,8 @@ public class AuthController {
         UserResponse user = userService.getUserByEmail(userDetails.getUsername());
         
         AuthResponse response = AuthResponse.of(newToken, user);
+        
+        log.info("Token refreshed successfully for user: {}", userDetails.getUsername());
         return ResponseEntity.ok(response);
     }
 } 

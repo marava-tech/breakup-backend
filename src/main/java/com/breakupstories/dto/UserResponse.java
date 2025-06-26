@@ -1,5 +1,6 @@
 package com.breakupstories.dto;
 
+import com.breakupstories.enums.GENDER;
 import com.breakupstories.model.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,20 +18,18 @@ public class UserResponse {
     private String id;
     private String name;
     private String email;
+    private GENDER gender;
+    private Integer age;
     private String profileImageUrl;
-    private User.AuthProvider authProvider;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
     
     public static UserResponse fromUser(User user) {
         return UserResponse.builder()
                 .id(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
+                .gender(user.getGender())
+                .age(user.getAge())
                 .profileImageUrl(user.getProfileImageUrl())
-                .authProvider(user.getAuthProvider())
-                .createdAt(user.getCreatedAt())
-                .updatedAt(user.getUpdatedAt())
                 .build();
     }
 } 

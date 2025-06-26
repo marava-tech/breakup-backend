@@ -8,29 +8,26 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Users", description = "User management APIs")
 public class UserController {
     
     private final UserService userService;
     
-    @PostMapping
-    @Operation(summary = "Create a new user", description = "Create a new user with the provided details")
-    public ResponseEntity<UserResponse> createUser(@Valid @RequestBody UserRequest request) {
-        UserResponse response = userService.createUser(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-    
     @GetMapping
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Get all users", description = "Retrieve paginated list of all users")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PagedResponse<UserResponse>> getUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -63,9 +60,27 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
     
+    @PostMapping("/profile-image")
+    @Operation(summary = "Update profile image", description = "Update the current user's profile image")
+    public ResponseEntity<UserResponse> updateProfileImage(
+            Authentication authentication,
+            @RequestParam("image") MultipartFile imageFile) {
+        
+        if (authentication == null || !authentication.isAuthenticated()) {
+            log.warn("Unauthenticated access attempt to update profile image");
+            throw new BadCredentialsException("User not authenticated");
+        }
+        
+        String userEmail = authentication.getName();
+        log.info("Updating profile image for authenticated user: {}", userEmail);
+        
+        UserResponse response = userService.updateProfileImage(userEmail, imageFile);
+        return ResponseEntity.ok(response);
+    }
+    
     @DeleteMapping("/{userId}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Delete user", description = "Delete a user by their ID")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable String userId) {
         userService.deleteUser(userId);
         return ResponseEntity.noContent().build();

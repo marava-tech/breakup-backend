@@ -1,5 +1,6 @@
 package com.breakupstories.model;
 
+import com.breakupstories.enums.GENDER;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -23,16 +24,13 @@ public class User {
     
     private String name;
     private String email;
+    private GENDER gender;
+    private Integer age;
     private String profileImageUrl;
-    private AuthProvider authProvider;
     
     @CreatedDate
     private LocalDateTime createdAt;
     
     @LastModifiedDate
     private LocalDateTime updatedAt;
-    
-    public enum AuthProvider {
-        GOOGLE, META, APPLE
-    }
 } 

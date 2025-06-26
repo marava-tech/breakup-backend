@@ -4,6 +4,7 @@ import com.breakupstories.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -22,10 +23,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@EnableScheduling
 @RequiredArgsConstructor
 public class SecurityConfig {
     
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final TestBypassAuthenticationFilter testBypassAuthFilter;
+    private final AdminAuthorizationFilter adminAuthorizationFilter;
     private final UserService userService;
     
     @Bean
@@ -33,7 +37,10 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/auth/send-otp-registration").permitAll()
+                        .requestMatchers("/api/auth/send-otp-login").permitAll()
+                        .requestMatchers("/api/auth/verify-otp-registration").permitAll()
+                        .requestMatchers("/api/auth/verify-otp-login").permitAll()
                         .requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll()
                         .requestMatchers("/api/stories").permitAll()
                         .anyRequest().authenticated()
@@ -42,7 +49,9 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(testBypassAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(adminAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
     }

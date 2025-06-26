@@ -13,6 +13,25 @@ spring:
     default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false
+  
+  # Gmail SMTP configuration
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: abhedyam.team@gmail.com
+    password: aualeeatizzmmjyl
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          ssl:
+            trust: smtp.gmail.com
+  servlet:
+    multipart:
+          max-file-size: 50MB
+          max-request-size: 50MB
 
 server:
   port: 8080
@@ -21,8 +40,22 @@ server:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:abcd1234abcd1234}
+  secret: ${JWT_SECRET:rA3jPjK6o0IBkSyKXZ8OEwTbU5z6a4NE2Kq+dfS2A3k=}
   expiration: 86400000 # 24 hours in milliseconds
+
+# Upload Service Configuration
+upload:
+  service:
+    url: ${UPLOAD_SERVICE_URL:http://localhost:9090}
+    endpoint: ${UPLOAD_SERVICE_ENDPOINT:/api/v1/upload}
+
+# Audio Streaming Configuration
+audio:
+  streaming:
+    buffer-size: ${AUDIO_BUFFER_SIZE:8192}
+    cache-duration: ${AUDIO_CACHE_DURATION:3600}
+    max-range-size: ${AUDIO_MAX_RANGE_SIZE:1048576} # 1MB chunks
+    enable-caching: ${AUDIO_ENABLE_CACHING:true}
 
 logging:
   level:
@@ -30,11 +63,33 @@ logging:
     org.springframework.data.mongodb: DEBUG
     org.springframework.security: DEBUG
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
 springdoc:
   api-docs:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
-    operations-sorter: method 
+    operations-sorter: method
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  health:
+    mongo:
+      enabled: true
+
+
+
