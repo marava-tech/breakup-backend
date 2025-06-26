@@ -10,6 +10,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Data
 @Builder
@@ -26,6 +27,12 @@ public class Audit {
     private ActionType actionType;
     private String entityId;
     
+    // Additional metadata for detailed tracking
+    private String userAgent;
+    private String ipAddress;
+    private String sessionId;
+    private Map<String, Object> metadata;
+    
     @CreatedDate
     private LocalDateTime createdAt;
     
@@ -33,10 +40,27 @@ public class Audit {
     private LocalDateTime updatedAt;
     
     public enum EntityType {
-        STORY, COMMENT, LIKE, BOOKMARK, FEEDBACK, USER
+        STORY, COMMENT, LIKE, BOOKMARK, FEEDBACK, USER, AUDIO, VIEW
     }
     
     public enum ActionType {
-        CREATE, UPDATE, DELETE
+        CREATE, UPDATE, DELETE, VIEW, LIKE, UNLIKE, COMMENT, PLAY, PAUSE, STOP, SHARE, DOWNLOAD
+    }
+    
+    // Helper methods for common metadata
+    public void addMetadata(String key, Object value) {
+        if (this.metadata == null) {
+            this.metadata = new java.util.HashMap<>();
+        }
+        this.metadata.put(key, value);
+    }
+    
+    public Object getMetadata(String key) {
+        return this.metadata != null ? this.metadata.get(key) : null;
+    }
+    
+    // Standard getter for the entire metadata map (Lombok will generate this, but we need to ensure it exists)
+    public Map<String, Object> getMetadata() {
+        return this.metadata;
     }
 } 

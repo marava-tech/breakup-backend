@@ -17,7 +17,7 @@ public class KeywordResponse {
     public static KeywordResponse fromKeyword(Keyword keyword) {
         return KeywordResponse.builder()
                 .id(keyword.getId())
-                .keyword(keyword.getKeyword())
+                .keyword(keyword.getKey())
                 .build();
     }
 } 

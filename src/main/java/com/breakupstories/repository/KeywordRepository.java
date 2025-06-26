@@ -10,7 +10,7 @@ import java.util.Optional;
 
 @Repository
 public interface KeywordRepository extends MongoRepository<Keyword, String> {
-    boolean existsByKeyword(String keyword);
-    Optional<Keyword> findByKeyword(String keyword);
+    boolean existsByKey(String key);
+    Optional<Keyword> findByKey(String key);
     Page<Keyword> findAll(Pageable pageable);
 } 

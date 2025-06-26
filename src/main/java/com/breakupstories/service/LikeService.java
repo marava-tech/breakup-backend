@@ -80,4 +80,8 @@ public class LikeService {
     public void deleteLikeByUserAndStory(String userId, String storyId) {
         likeRepository.deleteByUserIdAndStoryId(userId, storyId);
     }
+
+    public long getLikeCount(String storyId) {
+        return likeRepository.countByStoryId(storyId);
+    }
 } 

@@ -20,11 +20,11 @@ public class KeywordService {
     private final KeywordRepository keywordRepository;
 
     public KeywordResponse createKeyword(KeywordRequest request) {
-        if (keywordRepository.existsByKeyword(request.getKeyword())) {
+        if (keywordRepository.existsByKey(request.getKeyword())) {
             throw new RuntimeException("Keyword already exists: " + request.getKeyword());
         }
         Keyword keyword = Keyword.builder()
-                .keyword(request.getKeyword())
+                .key(request.getKeyword())
                 .build();
         return KeywordResponse.fromKeyword(keywordRepository.save(keyword));
     }
@@ -32,7 +32,7 @@ public class KeywordService {
     public KeywordResponse updateKeyword(String id, KeywordRequest request) {
         Keyword keyword = keywordRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Keyword not found: " + id));
-        keyword.setKeyword(request.getKeyword());
+        keyword.setKey(request.getKeyword());
         return KeywordResponse.fromKeyword(keywordRepository.save(keyword));
     }
 

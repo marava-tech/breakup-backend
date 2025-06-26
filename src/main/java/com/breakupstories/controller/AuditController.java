@@ -14,6 +14,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/audits")
 @RequiredArgsConstructor
@@ -23,16 +25,16 @@ public class AuditController {
     private final AuditService auditService;
     
     @PostMapping
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Create a new audit entry", description = "Create a new audit entry for tracking changes")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AuditResponse> createAudit(@Valid @RequestBody AuditRequest request) {
         AuditResponse response = auditService.createAudit(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
     
     @GetMapping
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Get all audits", description = "Retrieve paginated list of all audit entries")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PagedResponse<AuditResponse>> getAudits(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -42,8 +44,8 @@ public class AuditController {
     }
     
     @GetMapping("/user/{userId}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Get audits by user", description = "Retrieve paginated audit entries for a specific user")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PagedResponse<AuditResponse>> getAuditsByUser(
             @PathVariable String userId,
             @RequestParam(defaultValue = "0") int page,
@@ -54,8 +56,8 @@ public class AuditController {
     }
     
     @GetMapping("/entity-type/{entityType}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Get audits by entity type", description = "Retrieve paginated audit entries by entity type")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PagedResponse<AuditResponse>> getAuditsByEntityType(
             @PathVariable Audit.EntityType entityType,
             @RequestParam(defaultValue = "0") int page,
@@ -66,8 +68,8 @@ public class AuditController {
     }
     
     @GetMapping("/entity/{entityId}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Get audits by entity ID", description = "Retrieve paginated audit entries for a specific entity")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PagedResponse<AuditResponse>> getAuditsByEntityId(
             @PathVariable String entityId,
             @RequestParam(defaultValue = "0") int page,
@@ -77,17 +79,104 @@ public class AuditController {
         return ResponseEntity.ok(response);
     }
     
+    @GetMapping("/action-type/{actionType}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @Operation(summary = "Get audits by action type", description = "Retrieve paginated audit entries by action type")
+    public ResponseEntity<PagedResponse<AuditResponse>> getAuditsByActionType(
+            @PathVariable Audit.ActionType actionType,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        
+        PagedResponse<AuditResponse> response = auditService.getAuditsByActionType(actionType, page, size);
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/user/{userId}/entity-type/{entityType}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @Operation(summary = "Get audits by user and entity type", description = "Retrieve paginated audit entries for a specific user and entity type")
+    public ResponseEntity<PagedResponse<AuditResponse>> getAuditsByUserAndEntityType(
+            @PathVariable String userId,
+            @PathVariable Audit.EntityType entityType,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        
+        PagedResponse<AuditResponse> response = auditService.getAuditsByUserAndEntityType(userId, entityType, page, size);
+        return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/analytics/story-views")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @Operation(summary = "Get story view analytics", description = "Get analytics for story views")
+    public ResponseEntity<Map<String, Object>> getStoryViewAnalytics(
+            @RequestParam(required = false) String storyId,
+            @RequestParam(required = false) String userId) {
+        
+        // This would typically call a service method for analytics
+        // For now, return a placeholder response
+        Map<String, Object> analytics = Map.of(
+            "total_views", 0,
+            "unique_users", 0,
+            "story_id", storyId,
+            "user_id", userId
+        );
+        
+        return ResponseEntity.ok(analytics);
+    }
+    
+    @GetMapping("/analytics/audio-playback")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @Operation(summary = "Get audio playback analytics", description = "Get analytics for audio playback events")
+    public ResponseEntity<Map<String, Object>> getAudioPlaybackAnalytics(
+            @RequestParam(required = false) String storyId,
+            @RequestParam(required = false) String userId) {
+        
+        // This would typically call a service method for analytics
+        // For now, return a placeholder response
+        Map<String, Object> analytics = Map.of(
+            "total_plays", 0,
+            "total_pauses", 0,
+            "total_stops", 0,
+            "average_duration", 0.0,
+            "story_id", storyId,
+            "user_id", userId
+        );
+        
+        return ResponseEntity.ok(analytics);
+    }
+    
+    @GetMapping("/analytics/user-activity")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    @Operation(summary = "Get user activity analytics", description = "Get analytics for user activity")
+    public ResponseEntity<Map<String, Object>> getUserActivityAnalytics(
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String dateRange) {
+        
+        // This would typically call a service method for analytics
+        // For now, return a placeholder response
+        Map<String, Object> analytics = Map.of(
+            "total_actions", 0,
+            "story_views", 0,
+            "likes", 0,
+            "comments", 0,
+            "audio_plays", 0,
+            "user_id", userId,
+            "date_range", dateRange
+        );
+        
+        return ResponseEntity.ok(analytics);
+    }
+    
     @GetMapping("/{auditId}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Get audit by ID", description = "Retrieve a specific audit entry by its ID")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AuditResponse> getAuditById(@PathVariable String auditId) {
         AuditResponse response = auditService.getAuditById(auditId);
         return ResponseEntity.ok(response);
     }
     
     @DeleteMapping("/{auditId}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Delete audit", description = "Delete an audit entry by its ID")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteAudit(@PathVariable String auditId) {
         auditService.deleteAudit(auditId);
         return ResponseEntity.noContent().build();

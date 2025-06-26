@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import java.util.Map;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -26,4 +28,10 @@ public class AuditRequest {
     
     @NotBlank(message = "Entity ID is required")
     private String entityId;
+    
+    // Additional metadata fields
+    private String userAgent;
+    private String ipAddress;
+    private String sessionId;
+    private Map<String, Object> metadata;
 } 

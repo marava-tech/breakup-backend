@@ -1,0 +1,65 @@
+# Multi-stage build for Spring Boot application (Linux optimized)
+FROM eclipse-temurin:17-jdk-focal AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Install necessary packages for Linux
+RUN apt-get update && apt-get install -y \
+    wget \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Maven wrapper and pom.xml
+COPY .mvn/ .mvn/
+COPY mvnw .
+COPY pom.xml .
+
+# Make mvnw executable
+RUN chmod +x mvnw
+
+# Download dependencies (this layer will be cached if pom.xml doesn't change)
+RUN ./mvnw dependency:go-offline -B
+
+# Copy source code
+COPY src/ src/
+
+# Build the application
+RUN ./mvnw clean package -DskipTests
+
+# Runtime stage
+FROM eclipse-temurin:17-jre-focal
+
+# Install necessary runtime packages for Linux
+RUN apt-get update && apt-get install -y \
+    wget \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app user for security
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy the built JAR from builder stage
+COPY --from=builder /app/target/breakup-be-1.0.0.jar app.jar
+
+# Change ownership to app user
+RUN chown -R appuser:appgroup /app
+
+# Switch to app user
+USER appuser
+
+# Expose port 9100
+EXPOSE 9100
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:9100/actuator/health || exit 1
+
+# JVM options for production (Linux optimized)
+ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC -XX:+UseContainerSupport -XX:+OptimizeStringConcat -XX:+UseStringDeduplication"
+
+# Run the application on port 9100
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Dserver.port=9100 -jar app.jar"] 

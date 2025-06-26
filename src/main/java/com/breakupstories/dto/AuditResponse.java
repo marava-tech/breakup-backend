@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Data
 @Builder
@@ -19,6 +20,13 @@ public class AuditResponse {
     private Audit.EntityType entityType;
     private Audit.ActionType actionType;
     private String entityId;
+    
+    // Additional metadata fields
+    private String userAgent;
+    private String ipAddress;
+    private String sessionId;
+    private Map<String, Object> metadata;
+    
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
@@ -29,6 +37,10 @@ public class AuditResponse {
                 .entityType(audit.getEntityType())
                 .actionType(audit.getActionType())
                 .entityId(audit.getEntityId())
+                .userAgent(audit.getUserAgent())
+                .ipAddress(audit.getIpAddress())
+                .sessionId(audit.getSessionId())
+                .metadata(audit.getMetadata())
                 .createdAt(audit.getCreatedAt())
                 .updatedAt(audit.getUpdatedAt())
                 .build();

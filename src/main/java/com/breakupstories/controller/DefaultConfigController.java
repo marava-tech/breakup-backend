@@ -21,21 +21,21 @@ public class DefaultConfigController {
     private final DefaultConfigService defaultConfigService;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Create a new config entry")
     public ResponseEntity<DefaultConfigResponse> create(@Valid @RequestBody DefaultConfigRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(defaultConfigService.create(request));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Update a config entry")
     public ResponseEntity<DefaultConfigResponse> update(@PathVariable String id, @Valid @RequestBody DefaultConfigRequest request) {
         return ResponseEntity.ok(defaultConfigService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Delete a config entry")
     public ResponseEntity<Void> delete(@PathVariable String id) {
         defaultConfigService.delete(id);
@@ -43,18 +43,21 @@ public class DefaultConfigController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Get config by ID")
     public ResponseEntity<DefaultConfigResponse> getById(@PathVariable String id) {
         return ResponseEntity.ok(defaultConfigService.getById(id));
     }
 
     @GetMapping("/key/{key}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Get config by key")
     public ResponseEntity<DefaultConfigResponse> getByKey(@PathVariable String key) {
         return ResponseEntity.ok(defaultConfigService.getByKey(key));
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Get all configs (paginated)")
     public ResponseEntity<PagedResponse<DefaultConfigResponse>> getAll(
             @RequestParam(defaultValue = "0") int page,
