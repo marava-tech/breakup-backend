@@ -51,7 +51,7 @@ public class CommentService {
         log.info("Getting comments for story {} (page: {}, size: {})", storyId, page, size);
         
         Pageable pageable = PageRequest.of(page, size);
-        Page<Comment> commentPage = commentRepository.findByStoryIdAndParentIdIsNull(storyId, pageable);
+        Page<Comment> commentPage = commentRepository.findByStoryIdAndParentIdIsNullAndActiveTrue(storyId, pageable);
         
         List<CommentResponse> comments = commentPage.getContent().stream()
                 .map(this::buildCommentWithReplies)
@@ -68,8 +68,8 @@ public class CommentService {
     public List<CommentResponse> getAllCommentsByStory(String storyId) {
         log.info("Getting all comments for story {}", storyId);
         
-        // Get all top-level comments
-        List<Comment> topLevelComments = commentRepository.findByStoryIdAndParentIdIsNull(storyId);
+        // Get all top-level comments (active only)
+        List<Comment> topLevelComments = commentRepository.findByStoryIdAndParentIdIsNullAndActiveTrue(storyId);
         
         return topLevelComments.stream()
                 .map(this::buildCommentWithReplies)
@@ -84,8 +84,8 @@ public class CommentService {
     private CommentResponse buildCommentWithReplies(Comment comment) {
         CommentResponse response = CommentResponse.fromComment(comment);
         
-        // Get all replies for this comment
-        List<Comment> replies = commentRepository.findByParentId(comment.getId());
+        // Get all replies for this comment (active only)
+        List<Comment> replies = commentRepository.findByParentIdAndActiveTrue(comment.getId());
         
         // Recursively build replies (for nested replies)
         List<CommentResponse> replyResponses = replies.stream()
@@ -102,7 +102,7 @@ public class CommentService {
      * @return Total number of comments (including replies)
      */
     public long getCommentCount(String storyId) {
-        return commentRepository.countByStoryId(storyId);
+        return commentRepository.countByStoryIdAndActiveTrue(storyId);
     }
     
     public PagedResponse<CommentResponse> getComments(int page, int size) {
@@ -110,6 +110,7 @@ public class CommentService {
         Page<Comment> commentPage = commentRepository.findAll(pageable);
         
         List<CommentResponse> comments = commentPage.getContent().stream()
+                .filter(Comment::isActive) // Filter out inactive comments
                 .map(CommentResponse::fromComment)
                 .collect(Collectors.toList());
         
@@ -118,7 +119,7 @@ public class CommentService {
     
     public PagedResponse<CommentResponse> getCommentsByUser(String userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Comment> commentPage = commentRepository.findByUserId(userId, pageable);
+        Page<Comment> commentPage = commentRepository.findByUserIdAndActiveTrue(userId, pageable);
         
         List<CommentResponse> comments = commentPage.getContent().stream()
                 .map(CommentResponse::fromComment)
@@ -128,7 +129,7 @@ public class CommentService {
     }
     
     public List<CommentResponse> getRepliesByComment(String commentId) {
-        List<Comment> replies = commentRepository.findByParentId(commentId);
+        List<Comment> replies = commentRepository.findByParentIdAndActiveTrue(commentId);
         return replies.stream()
                 .map(CommentResponse::fromComment)
                 .collect(Collectors.toList());

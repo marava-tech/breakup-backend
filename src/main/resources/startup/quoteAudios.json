@@ -1,4 +1,32 @@
-[]
-//update with data soon.
-//key format - quote_audio_(audioNumber)
-// the objects need to be deserialize and insert to default config
+[
+  {
+    "key": "quote_audio_1",
+    "value": "https://res.cloudinary.com/dohsebpd1/video/upload/v1738308907/Naatho.mp3.mp3",
+    "description": "Quote Audio One",
+    "active": true
+  },
+  {
+    "key": "quote_audio_2",
+    "value": "https://res.cloudinary.com/dohsebpd1/video/upload/v1738308907/Naatho.mp3.mp3",
+    "description": "breakup Audio two",
+    "active": true
+  },
+  {
+    "key": "quote_audio_3",
+    "value": "https://res.cloudinary.com/dohsebpd1/video/upload/v1738308907/Naatho.mp3.mp3",
+    "description": "Quote Audio Three",
+    "active": true
+  },
+  {
+    "key": "quote_audio_4",
+    "value": "https://res.cloudinary.com/dohsebpd1/video/upload/v1738308907/Naatho.mp3.mp3",
+    "description": "Quote Audio Four",
+    "active": true
+  },
+  {
+    "key": "quote_audio_5",
+    "value": "https://res.cloudinary.com/dohsebpd1/video/upload/v1738308907/Naatho.mp3.mp3",
+    "description": "Quote Audio Five",
+    "active": true
+  }
+]

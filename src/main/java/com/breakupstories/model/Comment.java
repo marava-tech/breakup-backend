@@ -25,6 +25,7 @@ public class Comment {
     private String userId;
     private String parentId; // nullable for replies
     private String text;
+    private boolean active = true; // default to true for new comments
     
     @CreatedDate
     private LocalDateTime createdAt;

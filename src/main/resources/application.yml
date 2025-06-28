@@ -1,7 +1,8 @@
 spring:
   application:
     name: breakup-stories-api
-  
+
+
   data:
     mongodb:
       host: localhost
@@ -37,11 +38,12 @@ server:
   port: 8080
   servlet:
     context-path: /
+  address: 0.0.0.0
 
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:rA3jPjK6o0IBkSyKXZ8OEwTbU5z6a4NE2Kq+dfS2A3k=}
-  expiration: 86400000 # 24 hours in milliseconds
+  expiration: 2592000000 # 30 days in milliseconds
 
 # Upload Service Configuration
 upload:

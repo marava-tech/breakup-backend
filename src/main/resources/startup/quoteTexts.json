@@ -10,5 +10,23 @@
     "value": "Every new beginning comes from some other beginning's end.",
     "description": "Motivational breakup quote 2",
     "active": true
+  },
+  {
+    "key": "quote_text_3",
+    "value": "The pain you feel today is the strength you feel tomorrow.",
+    "description": "Motivational breakup quote 3",
+    "active": true
+  },
+  {
+    "key": "quote_text_4",
+    "value": "Time heals everything, but you have to give it time.",
+    "description": "Motivational breakup quote 4",
+    "active": true
+  },
+  {
+    "key": "quote_text_5",
+    "value": "You are stronger than you think and more capable than you know.",
+    "description": "Motivational breakup quote 5",
+    "active": true
   }
 ]

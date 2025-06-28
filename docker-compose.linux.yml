@@ -47,7 +47,7 @@ services:
       
       # JWT Configuration
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
-      JWT_EXPIRATION: 86400000
+      JWT_EXPIRATION: 2592000000
       
       # Email Configuration (Gmail)
       SPRING_MAIL_HOST: smtp.gmail.com

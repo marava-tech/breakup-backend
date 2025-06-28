@@ -10,5 +10,11 @@
     "value": "https://res.cloudinary.com/dohsebpd1/image/upload/v1750951801/default_female_profile.png",
     "description": "Default profile image URL for female users",
     "active": true
+  },
+  {
+    "key": "default_thumbnail_url",
+    "value": "https://res.cloudinary.com/dohsebpd1/image/upload/v1750703634/breakup-project/p2gevyvtladkcdumur8u.png",
+    "description": "Default profile image URL for female users",
+    "active": true
   }
 ] 

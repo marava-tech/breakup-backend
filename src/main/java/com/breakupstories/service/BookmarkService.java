@@ -6,6 +6,7 @@ import com.breakupstories.dto.PagedResponse;
 import com.breakupstories.dto.StoryResponse;
 import com.breakupstories.model.Bookmark;
 import com.breakupstories.model.Story;
+import com.breakupstories.model.User;
 import com.breakupstories.repository.BookmarkRepository;
 import com.breakupstories.repository.StoryRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,21 +26,22 @@ public class BookmarkService {
     private final StoryRepository storyRepository;
     private final LikeService likeService;
     private final CommentService commentService;
+    private final UserService userService;
     
-    public BookmarkResponse createBookmark(String userId, BookmarkRequest request) {
+    public BookmarkResponse createBookmark(String userId, String storyId) {
         // Check if bookmark already exists
-        if (bookmarkRepository.existsByUserIdAndStoryId(userId, request.getStoryId())) {
+        if (bookmarkRepository.existsByUserIdAndStoryId(userId, storyId)) {
             throw new RuntimeException("Bookmark already exists for this story");
         }
         
         // Verify story exists
-        if (!storyRepository.existsById(request.getStoryId())) {
-            throw new RuntimeException("Story not found with ID: " + request.getStoryId());
+        if (!storyRepository.existsById(storyId)) {
+            throw new RuntimeException("Story not found with ID: " + storyId);
         }
         
         Bookmark bookmark = Bookmark.builder()
                 .userId(userId)
-                .storyId(request.getStoryId())
+                .storyId(storyId)
                 .build();
         
         Bookmark savedBookmark = bookmarkRepository.save(bookmark);
@@ -80,6 +82,8 @@ public class BookmarkService {
                             return null;
                         }
                         
+                        User user = userService.getUserEntityById(story.getUserId());
+                        
                         // Check if user liked this story
                         boolean likedByMe = likeService.isLiked(userId, story.getId());
                         
@@ -89,7 +93,7 @@ public class BookmarkService {
                         long likeCount = likeService.getLikeCount(story.getId());
                         long commentCount = commentService.getCommentCount(story.getId());
                         
-                        return StoryResponse.fromStory(story, likedByMe, bookmarkedByMe, likeCount, commentCount);
+                        return StoryResponse.fromStory(story, user, likedByMe, bookmarkedByMe, likeCount, commentCount);
                     } catch (Exception e) {
                         // If story is not found or accessible, return null
                         return null;

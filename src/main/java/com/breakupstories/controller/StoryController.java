@@ -3,6 +3,7 @@ package com.breakupstories.controller;
 import com.breakupstories.dto.LikeResponse;
 import com.breakupstories.dto.PagedResponse;
 import com.breakupstories.dto.StoryResponse;
+import com.breakupstories.dto.StoryFilterRequest;
 import com.breakupstories.service.AuditService;
 import com.breakupstories.service.ClientInfoService;
 import com.breakupstories.service.StoryService;
@@ -16,6 +17,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @RestController
 @RequestMapping("/api/stories")
@@ -79,6 +83,47 @@ public class StoryController {
             response = storyService.getTrendingStories(page, size);
         }
         
+        return ResponseEntity.ok(response);
+    }
+
+
+    @GetMapping("/near-me")
+    @Operation(summary = "Get trending stories", description = "Retrieve paginated list of active stories sorted by view count")
+    public ResponseEntity<PagedResponse<StoryResponse>> getNearByStories(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+
+        PagedResponse<StoryResponse> response;
+        if (authentication != null && authentication.isAuthenticated()) {
+            String email = authentication.getName();
+            String userId = userService.getUserEntityByEmail(email).getId();
+            response = storyService.getTrendingStories(userId, page, size);
+        } else {
+            response = storyService.getTrendingStories(page, size);
+        }
+
+        return ResponseEntity.ok(response);
+    }
+
+
+    @GetMapping("/similar/{storyId}")
+    @Operation(summary = "Get trending stories", description = "Retrieve paginated list of active stories sorted by view count")
+    public ResponseEntity<PagedResponse<StoryResponse>> getNearByStories(
+            @PathVariable String storyId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+
+        PagedResponse<StoryResponse> response;
+        if (authentication != null && authentication.isAuthenticated()) {
+            String email = authentication.getName();
+            String userId = userService.getUserEntityByEmail(email).getId();
+            response = storyService.getTrendingStories(userId, page, size);
+        } else {
+            response = storyService.getTrendingStories(page, size);
+        }
+
         return ResponseEntity.ok(response);
     }
     
@@ -225,5 +270,84 @@ public class StoryController {
         
         PagedResponse<StoryResponse> response = storyService.getStoriesByUserPreferredLanguage(userId, page, size);
         return ResponseEntity.ok(response);
+    }
+    
+    @GetMapping("/search")
+    @Operation(summary = "Search and filter stories", description = "Search and filter stories by language, title, and date range")
+    public ResponseEntity<PagedResponse<StoryResponse>> searchStories(
+            @RequestParam(required = false) String language,
+            @RequestParam(required = false) String titleContains,
+            @RequestParam(required = false) String createdAtStart,
+            @RequestParam(required = false) String createdAtEnd,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
+        
+        // Build filter request
+        StoryFilterRequest filterRequest = StoryFilterRequest.builder()
+                .language(language)
+                .titleContains(titleContains)
+                .page(page)
+                .size(size)
+                .build();
+        
+        // Parse date parameters if provided
+        DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+        if (createdAtStart != null && !createdAtStart.trim().isEmpty()) {
+            try {
+                filterRequest.setCreatedAtStart(LocalDateTime.parse(createdAtStart, formatter));
+            } catch (Exception e) {
+                log.warn("Invalid start date format: {}", createdAtStart);
+                return ResponseEntity.badRequest().build();
+            }
+        }
+        
+        if (createdAtEnd != null && !createdAtEnd.trim().isEmpty()) {
+            try {
+                filterRequest.setCreatedAtEnd(LocalDateTime.parse(createdAtEnd, formatter));
+            } catch (Exception e) {
+                log.warn("Invalid end date format: {}", createdAtEnd);
+                return ResponseEntity.badRequest().build();
+            }
+        }
+        
+        try {
+            PagedResponse<StoryResponse> response;
+            if (authentication != null && authentication.isAuthenticated()) {
+                String email = authentication.getName();
+                String userId = userService.getUserEntityByEmail(email).getId();
+                response = storyService.searchStoriesWithUserContext(filterRequest, userId);
+            } else {
+                response = storyService.searchStories(filterRequest);
+            }
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid filter request: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    @PostMapping("/search")
+    @Operation(summary = "Search and filter stories with POST", description = "Search and filter stories using POST request with JSON body")
+    public ResponseEntity<PagedResponse<StoryResponse>> searchStoriesPost(
+            @RequestBody StoryFilterRequest filterRequest,
+            Authentication authentication) {
+        
+        try {
+            PagedResponse<StoryResponse> response;
+            if (authentication != null && authentication.isAuthenticated()) {
+                String email = authentication.getName();
+                String userId = userService.getUserEntityByEmail(email).getId();
+                response = storyService.searchStoriesWithUserContext(filterRequest, userId);
+            } else {
+                response = storyService.searchStories(filterRequest);
+            }
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid filter request: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
+        }
     }
 } 

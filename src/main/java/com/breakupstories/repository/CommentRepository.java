@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -22,4 +23,24 @@ public interface CommentRepository extends MongoRepository<Comment, String> {
     long countByStoryId(String storyId);
     
     Page<Comment> findByUserId(String userId, Pageable pageable);
+    
+    /**
+     * Find comments created in the last 10 minutes
+     * @param fromTime The start time (10 minutes ago)
+     * @return List of comments created after the specified time
+     */
+    List<Comment> findByCreatedAtAfter(LocalDateTime fromTime);
+    
+    // Active comments only
+    Page<Comment> findByStoryIdAndActiveTrue(String storyId, Pageable pageable);
+    
+    List<Comment> findByStoryIdAndParentIdIsNullAndActiveTrue(String storyId);
+    
+    Page<Comment> findByStoryIdAndParentIdIsNullAndActiveTrue(String storyId, Pageable pageable);
+    
+    List<Comment> findByParentIdAndActiveTrue(String parentId);
+    
+    long countByStoryIdAndActiveTrue(String storyId);
+    
+    Page<Comment> findByUserIdAndActiveTrue(String userId, Pageable pageable);
 } 

@@ -15,7 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/audio")
+@RequestMapping("/api/audio-stream")
 @RequiredArgsConstructor
 @Slf4j
 @Tag(name = "Audio Streaming", description = "Audio streaming APIs for stories")
@@ -129,4 +129,5 @@ public class AudioStreamController {
         
         return ResponseEntity.ok().build();
     }
+
 } 

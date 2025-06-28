@@ -4,6 +4,7 @@ import com.breakupstories.model.Content;
 import com.breakupstories.model.Emotion;
 import com.breakupstories.model.Story;
 import com.breakupstories.model.StoryMetadata;
+import com.breakupstories.model.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,6 +21,7 @@ public class StoryResponse {
     
     private String id;
     private String userId;
+    private String username;
     private String title;
     private String audioUrl;
     private String thumbnailUrl;
@@ -41,10 +43,11 @@ public class StoryResponse {
     private boolean isLikedByMe = false;
     private boolean isBookmarkedByMe = false;
 
-    public static StoryResponse fromStory(Story story, boolean isLikedByMe, long likeCount, long commentCount) {
+    public static StoryResponse fromStory(Story story, User user, boolean isLikedByMe, long likeCount, long commentCount) {
         return StoryResponse.builder()
                 .id(story.getId())
                 .userId(story.getUserId())
+                .username(user != null ? user.getName() : null)
                 .title(story.getTitle())
                 .audioUrl(story.getAudioUrl())
                 .thumbnailUrl(story.getThumbnailUrl())
@@ -66,10 +69,11 @@ public class StoryResponse {
                 .build();
     }
     
-    public static StoryResponse fromStory(Story story, boolean isLikedByMe, boolean isBookmarkedByMe, long likeCount, long commentCount) {
+    public static StoryResponse fromStory(Story story, User user, boolean isLikedByMe, boolean isBookmarkedByMe, long likeCount, long commentCount) {
         return StoryResponse.builder()
                 .id(story.getId())
                 .userId(story.getUserId())
+                .username(user != null ? user.getName() : null)
                 .title(story.getTitle())
                 .audioUrl(story.getAudioUrl())
                 .thumbnailUrl(story.getThumbnailUrl())
@@ -91,10 +95,11 @@ public class StoryResponse {
                 .build();
     }
     
-    public static StoryResponse fromStory(Story story) {
+    public static StoryResponse fromStory(Story story, User user) {
         return StoryResponse.builder()
                 .id(story.getId())
                 .userId(story.getUserId())
+                .username(user != null ? user.getName() : null)
                 .title(story.getTitle())
                 .audioUrl(story.getAudioUrl())
                 .thumbnailUrl(story.getThumbnailUrl())
@@ -110,5 +115,18 @@ public class StoryResponse {
                 .createdAt(story.getCreatedAt())
                 .updatedAt(story.getUpdatedAt())
                 .build();
+    }
+
+    // Keep the old methods for backward compatibility
+    public static StoryResponse fromStory(Story story, boolean isLikedByMe, long likeCount, long commentCount) {
+        return fromStory(story, null, isLikedByMe, likeCount, commentCount);
+    }
+    
+    public static StoryResponse fromStory(Story story, boolean isLikedByMe, boolean isBookmarkedByMe, long likeCount, long commentCount) {
+        return fromStory(story, null, isLikedByMe, isBookmarkedByMe, likeCount, commentCount);
+    }
+    
+    public static StoryResponse fromStory(Story story) {
+        return fromStory(story, null);
     }
 } 
