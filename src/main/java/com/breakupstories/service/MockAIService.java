@@ -1,6 +1,5 @@
 package com.breakupstories.service;
 
-import com.breakupstories.dto.StoryResponse;
 import com.breakupstories.model.Content;
 import com.breakupstories.model.Emotion;
 import com.breakupstories.model.Story;
@@ -17,12 +16,64 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-@Slf4j
+/**
+ * Mock AI Service implementation for all AI functionalities
+ * Replace this with your actual AI service integration
+ */
 @Service
+@Slf4j
 @AllArgsConstructor
 public class MockAIService {
 
+
     private final StoryRepository storyRepository;
+    private final DefaultConfigService defaultConfigService;
+
+
+    // List of negative/hateful words for basic filtering
+    private static final List<String> NEGATIVE_WORDS = Arrays.asList(
+        "hate", "stupid", "idiot", "dumb", "ugly", "fat", "kill", "die", "terrible", "awful",
+        "horrible", "disgusting", "worthless", "useless", "pathetic", "loser", "failure",
+        "crap", "shit", "fuck", "bitch", "asshole", "bastard", "damn", "hell"
+    );
+    
+    /**
+     * Analyze comment text to determine if it's hateful/negative or positive
+     * @param commentText The text to analyze
+     * @return true if comment is positive, false if hateful/negative
+     */
+    public boolean analyzeComment(String commentText) {
+        if (commentText == null || commentText.trim().isEmpty()) {
+            log.warn("Empty comment text provided for analysis");
+            return true; // Consider empty comments as neutral/positive
+        }
+        
+        String lowerCaseText = commentText.toLowerCase();
+        
+        // Check for negative words
+        boolean containsNegativeWords = NEGATIVE_WORDS.stream()
+                .anyMatch(lowerCaseText::contains);
+        
+        // Check for excessive caps (shouting)
+        long upperCaseCount = commentText.chars()
+                .filter(Character::isUpperCase)
+                .count();
+        boolean isShouting = upperCaseCount > commentText.length() * 0.7; // More than 70% caps
+        
+        // Check for excessive punctuation
+        long exclamationCount = commentText.chars()
+                .filter(ch -> ch == '!' || ch == '?')
+                .count();
+        boolean hasExcessivePunctuation = exclamationCount > 3;
+        
+        // Determine if comment is negative
+        boolean isNegative = containsNegativeWords || isShouting || hasExcessivePunctuation;
+        
+        log.info("Comment analysis - Text: '{}', IsNegative: {}", 
+                commentText.substring(0, Math.min(50, commentText.length())), isNegative);
+        
+        return !isNegative; // Return true for positive, false for negative
+    }
 
 
     @Async
@@ -370,7 +421,7 @@ public class MockAIService {
     }
 
     private String mockCreateThumbnailUrl(String storyId) {
-        return "https://res.cloudinary.com/dohsebpd1/image/upload/v1750951801/thumbnail_" + storyId + ".jpg";
+        return defaultConfigService.getDefaultThumbnailUrl();
     }
 
     /**

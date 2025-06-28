@@ -48,7 +48,7 @@ services:
       
       # JWT Configuration
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION: ${JWT_EXPIRATION:86400000}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:2592000000}
       
       # Email Configuration (Gmail)
       SPRING_MAIL_HOST: smtp.gmail.com

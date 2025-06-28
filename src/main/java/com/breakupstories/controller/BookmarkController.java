@@ -32,10 +32,10 @@ public class BookmarkController {
     private final AuditService auditService;
     private final ClientInfoService clientInfoService;
     
-    @PostMapping
+    @PostMapping("/story/{storyId}")
     @Operation(summary = "Create a bookmark", description = "Bookmark a story for the authenticated user")
     public ResponseEntity<BookmarkResponse> createBookmark(
-            @Valid @RequestBody BookmarkRequest request,
+            @Valid @PathVariable String storyId,
             Authentication authentication) {
         
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -45,18 +45,18 @@ public class BookmarkController {
         String email = authentication.getName();
         String userId = userService.getUserEntityByEmail(email).getId();
         
-        log.info("User {} creating bookmark for story {}", userId, request.getStoryId());
+        log.info("User {} creating bookmark for story {}", userId, storyId);
         
         // Verify story exists
-        storyService.getStoryById(request.getStoryId());
+        storyService.getStoryById(storyId);
         
-        BookmarkResponse response = bookmarkService.createBookmark(userId, request);
+        BookmarkResponse response = bookmarkService.createBookmark(userId, storyId);
         
         // Audit bookmark creation
         ClientInfoService.ClientInfo clientInfo = clientInfoService.extractClientInfo();
-        auditService.logBookmarkCreate(userId, request.getStoryId(), clientInfo.getUserAgent(), 
+        auditService.logBookmarkCreate(userId, storyId, clientInfo.getUserAgent(),
                                      clientInfo.getIpAddress(), clientInfo.getSessionId());
-        log.info("Audited bookmark creation for user {} on story {}", userId, request.getStoryId());
+        log.info("Audited bookmark creation for user {} on story {}", userId, storyId);
         
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

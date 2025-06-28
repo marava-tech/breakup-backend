@@ -6,6 +6,7 @@ import com.breakupstories.dto.PagedResponse;
 import com.breakupstories.dto.StoryResponse;
 import com.breakupstories.dto.CommentRequest;
 import com.breakupstories.dto.CommentResponse;
+import com.breakupstories.dto.StoryFilterRequest;
 import com.breakupstories.model.Story;
 import com.breakupstories.model.StoryMetadata;
 import com.breakupstories.model.User;
@@ -19,12 +20,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +35,7 @@ public class StoryService {
     private final CommentService commentService;
     private final UserService userService;
     private final MockAIService mockAIService;
+    private final BookmarkService bookmarkService;
 
     public StoryResponse createStory(String userId, MultipartHttpServletRequest request) {
         log.info("Creating story for user: {}", userId);
@@ -74,7 +73,8 @@ public class StoryService {
             // Step 3: Start async AI processing
             mockAIService.processStoryWithAIAsync(savedStory.getId());
             
-            return StoryResponse.fromStory(savedStory);
+            User user = userService.getUserEntityById(userId);
+            return StoryResponse.fromStory(savedStory, user);
             
         } catch (Exception e) {
             log.error("Error creating story for user {}: {}", userId, e.getMessage(), e);
@@ -95,13 +95,14 @@ public class StoryService {
 
     public PagedResponse<StoryResponse> getStories(int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Story> storyPage = storyRepository.findByStatus(Story.StoryStatus.ACTIVE, pageable);
+        Page<Story> storyPage = storyRepository.findAll(pageable);
         
         List<StoryResponse> stories = storyPage.getContent().stream()
                 .map(story -> {
+                    User user = userService.getUserEntityById(story.getUserId());
                     long likeCount = getLikeCount(story.getId());
                     long commentCount = getCommentCount(story.getId());
-                    return StoryResponse.fromStory(story, false, likeCount, commentCount);
+                    return StoryResponse.fromStory(story, user, false, likeCount, commentCount);
                 })
                 .collect(Collectors.toList());
         
@@ -120,9 +121,10 @@ public class StoryService {
         
         List<StoryResponse> stories = storyPage.getContent().stream()
                 .map(story -> {
+                    User user = userService.getUserEntityById(story.getUserId());
                     long likeCount = getLikeCount(story.getId());
                     long commentCount = getCommentCount(story.getId());
-                    return StoryResponse.fromStory(story, false, likeCount, commentCount);
+                    return StoryResponse.fromStory(story, user, false, likeCount, commentCount);
                 })
                 .collect(Collectors.toList());
         
@@ -142,10 +144,12 @@ public class StoryService {
         
         List<StoryResponse> stories = storyPage.getContent().stream()
                 .map(story -> {
+                    User user = userService.getUserEntityById(story.getUserId());
                     boolean likedByMe = likeService.isLiked(currentUserId, story.getId());
+                    boolean bookmarkedByMe = bookmarkService.isBookmarked(currentUserId, story.getId());
                     long likeCount = getLikeCount(story.getId());
                     long commentCount = getCommentCount(story.getId());
-                    return StoryResponse.fromStory(story, likedByMe, likeCount, commentCount);
+                    return StoryResponse.fromStory(story, user, likedByMe, bookmarkedByMe, likeCount, commentCount);
                 })
                 .collect(Collectors.toList());
         
@@ -161,15 +165,18 @@ public class StoryService {
      */
     public PagedResponse<StoryResponse> getStories(String currentUserId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<Story> storyPage = storyRepository.findByStatus(Story.StoryStatus.ACTIVE, pageable);
+        Page<Story> storyPage = storyRepository.findByUserId(currentUserId, pageable);
         
         List<StoryResponse> stories = storyPage.getContent().stream()
                 .map(story -> {
+                    User user = userService.getUserEntityById(story.getUserId());
                     boolean likedByMe = likeService.isLiked(currentUserId, story.getId());
+                    boolean bookmarkedByMe = bookmarkService.isBookmarked(currentUserId, story.getId());
                     long likeCount = getLikeCount(story.getId());
                     long commentCount = getCommentCount(story.getId());
-                    return StoryResponse.fromStory(story, likedByMe, likeCount, commentCount);
+                    return StoryResponse.fromStory(story, user, likedByMe, bookmarkedByMe, likeCount, commentCount);
                 })
+                .sorted(Comparator.comparing(StoryResponse::getCreatedAt,Comparator.reverseOrder()))
                 .collect(Collectors.toList());
         
         return PagedResponse.of(stories, page, size, storyPage.getTotalElements());
@@ -188,9 +195,10 @@ public class StoryService {
         
         List<StoryResponse> stories = storyPage.getContent().stream()
                 .map(story -> {
+                    User user = userService.getUserEntityById(story.getUserId());
                     long likeCount = getLikeCount(story.getId());
                     long commentCount = getCommentCount(story.getId());
-                    return StoryResponse.fromStory(story, false, likeCount, commentCount);
+                    return StoryResponse.fromStory(story, user, false, likeCount, commentCount);
                 })
                 .collect(Collectors.toList());
         
@@ -211,10 +219,12 @@ public class StoryService {
         
         List<StoryResponse> stories = storyPage.getContent().stream()
                 .map(story -> {
+                    User user = userService.getUserEntityById(story.getUserId());
                     boolean likedByMe = likeService.isLiked(currentUserId, story.getId());
+                    boolean bookmarkedByMe = bookmarkService.isBookmarked(currentUserId, story.getId());
                     long likeCount = getLikeCount(story.getId());
                     long commentCount = getCommentCount(story.getId());
-                    return StoryResponse.fromStory(story, likedByMe, likeCount, commentCount);
+                    return StoryResponse.fromStory(story, user, likedByMe, bookmarkedByMe, likeCount, commentCount);
                 })
                 .collect(Collectors.toList());
         
@@ -225,23 +235,28 @@ public class StoryService {
         Story story = storyRepository.findById(storyId)
                 .orElseThrow(() -> new RuntimeException("Story not found with ID: " + storyId));
         
+        User user = userService.getUserEntityById(story.getUserId());
+        
         // Check if the current user liked this story
         boolean likedByMe = likeService.isLiked(currentUserId, storyId);
+        boolean bookmarkedByMe = bookmarkService.isBookmarked(currentUserId, storyId);
         
         long likeCount = getLikeCount(storyId);
         long commentCount = getCommentCount(storyId);
         
-        return StoryResponse.fromStory(story, likedByMe, likeCount, commentCount);
+        return StoryResponse.fromStory(story, user, likedByMe, bookmarkedByMe, likeCount, commentCount);
     }
     
     public StoryResponse getStoryById(String storyId) {
         Story story = storyRepository.findById(storyId)
                 .orElseThrow(() -> new RuntimeException("Story not found with ID: " + storyId));
         
+        User user = userService.getUserEntityById(story.getUserId());
+        
         long likeCount = getLikeCount(storyId);
         long commentCount = getCommentCount(storyId);
         
-        return StoryResponse.fromStory(story, false, false, likeCount, commentCount); // Default to false when no user context
+        return StoryResponse.fromStory(story, user, false, false, likeCount, commentCount); // Default to false when no user context
     }
     
     /**
@@ -323,9 +338,11 @@ public class StoryService {
         List<StoryResponse> stories = storyPage.getContent().stream()
                 .filter(story -> likeService.isLiked(userId, story.getId()))
                 .map(story -> {
+                    User user = userService.getUserEntityById(story.getUserId());
+                    boolean bookmarkedByMe = bookmarkService.isBookmarked(userId, story.getId());
                     long likeCount = getLikeCount(story.getId());
                     long commentCount = getCommentCount(story.getId());
-                    return StoryResponse.fromStory(story, true, likeCount, commentCount);
+                    return StoryResponse.fromStory(story, user, true, bookmarkedByMe, likeCount, commentCount);
                 })
                 .collect(Collectors.toList());
         
@@ -458,5 +475,92 @@ public class StoryService {
         
         // Get stories by preferred language
         return getStoriesByLanguage(preferredLanguage, currentUserId, page, size);
+    }
+    
+    /**
+     * Search and filter stories with multiple criteria
+     * @param filterRequest The filter request containing search criteria
+     * @return PagedResponse of filtered stories
+     */
+    public PagedResponse<StoryResponse> searchStories(StoryFilterRequest filterRequest) {
+        // Validate the filter request
+        filterRequest.validate();
+        
+        // Set default pagination if not provided
+        int page = filterRequest.getPage() != null ? filterRequest.getPage() : 0;
+        int size = filterRequest.getSize() != null ? filterRequest.getSize() : 10;
+        
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Story> storyPage;
+        
+        if (filterRequest.hasFilters()) {
+            // Use the custom query with filters
+            storyPage = storyRepository.findStoriesWithFilters(
+                filterRequest.getLanguage(),
+                filterRequest.getTitleContains(),
+                filterRequest.getCreatedAtStart(),
+                filterRequest.getCreatedAtEnd(),
+                pageable
+            );
+        } else {
+            // No filters applied, return all active stories
+            storyPage = storyRepository.findByStatus(Story.StoryStatus.ACTIVE, pageable);
+        }
+        
+        List<StoryResponse> stories = storyPage.getContent().stream()
+                .map(story -> {
+                    User user = userService.getUserEntityById(story.getUserId());
+                    long likeCount = getLikeCount(story.getId());
+                    long commentCount = getCommentCount(story.getId());
+                    return StoryResponse.fromStory(story, user, false, false, likeCount, commentCount);
+                })
+                .collect(Collectors.toList());
+        
+        return PagedResponse.of(stories, page, size, storyPage.getTotalElements());
+    }
+    
+    /**
+     * Search and filter stories with user context (includes likedByMe and bookmarkedByMe status)
+     * @param filterRequest The filter request containing search criteria
+     * @param currentUserId The current user ID
+     * @return PagedResponse of filtered stories with user context
+     */
+    public PagedResponse<StoryResponse> searchStoriesWithUserContext(StoryFilterRequest filterRequest, String currentUserId) {
+        // Validate the filter request
+        filterRequest.validate();
+        
+        // Set default pagination if not provided
+        int page = filterRequest.getPage() != null ? filterRequest.getPage() : 0;
+        int size = filterRequest.getSize() != null ? filterRequest.getSize() : 10;
+        
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Story> storyPage;
+        
+        if (filterRequest.hasFilters()) {
+            // Use the custom query with filters
+            storyPage = storyRepository.findStoriesWithFilters(
+                filterRequest.getLanguage(),
+                filterRequest.getTitleContains(),
+                filterRequest.getCreatedAtStart(),
+                filterRequest.getCreatedAtEnd(),
+                pageable
+            );
+        } else {
+            // No filters applied, return all active stories
+            storyPage = storyRepository.findByStatus(Story.StoryStatus.ACTIVE, pageable);
+        }
+        
+        List<StoryResponse> stories = storyPage.getContent().stream()
+                .map(story -> {
+                    User user = userService.getUserEntityById(story.getUserId());
+                    boolean likedByMe = likeService.isLiked(currentUserId, story.getId());
+                    boolean bookmarkedByMe = bookmarkService.isBookmarked(currentUserId, story.getId());
+                    long likeCount = getLikeCount(story.getId());
+                    long commentCount = getCommentCount(story.getId());
+                    return StoryResponse.fromStory(story, user, likedByMe, bookmarkedByMe, likeCount, commentCount);
+                })
+                .collect(Collectors.toList());
+        
+        return PagedResponse.of(stories, page, size, storyPage.getTotalElements());
     }
 } 

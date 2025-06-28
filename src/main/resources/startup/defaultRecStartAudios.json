@@ -1,5 +1,26 @@
-[]
-// update with data soon.
-// key format - language_+gender_+start_rec
-//ex: telugu_male_start_rec , telugu_female_start_rec , english_male_start_rec etc.
-// the objects need to be deserialize and insert to default config
+[
+  {
+    "key": "telugu_male_start_rec",
+    "value": "https://res.cloudinary.com/dohsebpd1/video/upload/v1751104329/qswjuocm9op0oeil7m8d.mp3",
+    "description": "Default recording start audio for Telugu male users",
+    "active": true
+  },
+  {
+    "key": "telugu_female_start_rec",
+    "value": "https://res.cloudinary.com/dohsebpd1/video/upload/v1751104329/qswjuocm9op0oeil7m8d.mp3",
+    "description": "Default recording start audio for Telugu female users",
+    "active": true
+  },
+  {
+    "key": "english_male_start_rec",
+    "value": "https://res.cloudinary.com/dohsebpd1/video/upload/v1751104329/qswjuocm9op0oeil7m8d.mp3",
+    "description": "Default recording start audio for English male users",
+    "active": true
+  },
+  {
+    "key": "english_female_start_rec",
+    "value": "https://res.cloudinary.com/dohsebpd1/video/upload/v1751104329/qswjuocm9op0oeil7m8d.mp3",
+    "description": "Default recording start audio for English female users",
+    "active": true
+  }
+] 

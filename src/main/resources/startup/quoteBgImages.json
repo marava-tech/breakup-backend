@@ -1,4 +1,32 @@
-[]
-//update with data soon.
-//key format - quote_image_(imageNumber)
-// the objects need to be deserialize and insert to default config
+[
+  {
+    "key": "quote_image_1",
+    "value": "https://res.cloudinary.com/dohsebpd1/image/upload/v1750951801/tree_image.png.avif",
+    "description": "quote image one",
+    "active": true
+  },
+  {
+    "key": "quote_image_2",
+    "value": "https://res.cloudinary.com/dohsebpd1/image/upload/v1735733855/love-issues_glrza0.png",
+    "description": "quote image two",
+    "active": true
+  },
+  {
+    "key": "quote_image_3",
+    "value": "https://res.cloudinary.com/dohsebpd1/image/upload/v1750951801/sunset_image.png.avif",
+    "description": "quote image three",
+    "active": true
+  },
+  {
+    "key": "quote_image_4",
+    "value": "https://res.cloudinary.com/dohsebpd1/image/upload/v1750951801/ocean_image.png.avif",
+    "description": "quote image four",
+    "active": true
+  },
+  {
+    "key": "quote_image_5",
+    "value": "https://res.cloudinary.com/dohsebpd1/image/upload/v1750951801/mountain_image.png.avif",
+    "description": "quote image five",
+    "active": true
+  }
+]

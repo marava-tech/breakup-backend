@@ -37,6 +37,7 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/health/**").permitAll()
                         .requestMatchers("/api/auth/send-otp-registration").permitAll()
                         .requestMatchers("/api/auth/send-otp-login").permitAll()
                         .requestMatchers("/api/auth/verify-otp-registration").permitAll()
