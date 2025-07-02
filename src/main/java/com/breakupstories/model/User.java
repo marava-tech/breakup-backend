@@ -29,6 +29,9 @@ public class User {
     private Integer age;
     private String profileImageUrl;
     private String preferredStoryLanguage;
+    private String referralCode;
+    private String referredBy;
+    private int coinBalance;
     
     @Builder.Default
     private Role role = Role.USER;

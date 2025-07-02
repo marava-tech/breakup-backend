@@ -10,6 +10,7 @@ import com.breakupstories.model.User;
 import com.breakupstories.repository.BookmarkRepository;
 import com.breakupstories.repository.StoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -25,7 +26,9 @@ public class BookmarkService {
     private final BookmarkRepository bookmarkRepository;
     private final StoryRepository storyRepository;
     private final LikeService likeService;
+    @Lazy
     private final CommentService commentService;
+    @Lazy
     private final UserService userService;
     
     public BookmarkResponse createBookmark(String userId, String storyId) {

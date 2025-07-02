@@ -80,6 +80,7 @@ public class AuthController {
                 .age(request.getAge())
                 .preferredStoryLanguage(request.getPreferredStoryLanguage())
                 .role(request.getRole())
+                .referralCode(request.getReferralCode())
                 .build();
         
         // Create user after OTP verification

@@ -28,6 +28,7 @@ public class Story {
     private String audioUrl;
     private String thumbnailUrl;
     private Long viewCount;
+    private Long duration; // Duration in milliseconds
     private StoryStatus status;
     
     private List<Content> contents;

@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -26,6 +27,12 @@ public class UserProfileResponse {
     private Role role;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    
+    // Referral and coins information
+    private String referralCode;
+    private String referredBy;
+    private String referredByUserName;
+    private int totalCoins;
     
     // Statistics
     private Long totalStories;
@@ -45,6 +52,33 @@ public class UserProfileResponse {
                 .role(user.getRole())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
+                .referralCode(user.getReferralCode())
+                .referredBy(user.getReferredBy())
+                .totalCoins(user.getCoinBalance())
+                .totalStories(totalStories)
+                .totalLikes(totalLikes)
+                .totalViews(totalViews)
+                .totalComments(totalComments)
+                .build();
+    }
+    
+    public static UserProfileResponse fromUserWithReferralInfo(User user, Long totalStories, Long totalLikes, Long totalViews, Long totalComments, 
+                                                             String referredByUserName, List<CoinHistoryResponse> referralHistory) {
+        return UserProfileResponse.builder()
+                .id(user.getId())
+                .name(user.getName())
+                .email(user.getEmail())
+                .profileImageUrl(user.getProfileImageUrl())
+                .gender(user.getGender())
+                .age(user.getAge())
+                .preferredStoryLanguage(user.getPreferredStoryLanguage())
+                .role(user.getRole())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
+                .referralCode(user.getReferralCode())
+                .referredBy(user.getReferredBy())
+                .referredByUserName(referredByUserName)
+                .totalCoins(user.getCoinBalance())
                 .totalStories(totalStories)
                 .totalLikes(totalLikes)
                 .totalViews(totalViews)

@@ -46,4 +46,6 @@ public class RegistrationRequest {
     private String preferredStoryLanguage;
     
     private Role role;
+
+    private String referralCode;
 } 
