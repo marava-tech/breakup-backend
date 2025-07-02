@@ -39,4 +39,6 @@ public class UserRequest {
     private String preferredStoryLanguage;
     
     private Role role;
+    
+    private String referralCode;
 } 

@@ -13,6 +13,9 @@ import com.breakupstories.repository.UserRepository;
 import com.breakupstories.repository.StoryRepository;
 import com.breakupstories.repository.LikeRepository;
 import com.breakupstories.repository.CommentRepository;
+import com.breakupstories.repository.CoinHistoryRepository;
+import com.breakupstories.dto.CoinHistoryResponse;
+import com.breakupstories.util.ApplicationContextProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
@@ -24,6 +27,10 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -40,6 +47,7 @@ public class UserService implements UserDetailsService {
     private final StoryRepository storyRepository;
     private final LikeRepository likeRepository;
     private final CommentRepository commentRepository;
+    private final CoinHistoryRepository coinHistoryRepository;
     
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
@@ -86,9 +94,20 @@ public class UserService implements UserDetailsService {
                 .profileImageUrl(defaultProfileImageUrl)
                 .preferredStoryLanguage(request.getPreferredStoryLanguage())
                 .role(role)
+                .coinBalance(0) // Initialize with 0 coins
                 .build();
         
         User savedUser = userRepository.save(user);
+        
+        // Generate referral code for the new user
+        RewardService rewardService = ApplicationContextProvider.getBean(RewardService.class);
+        rewardService.generateReferralCode(savedUser.getId());
+        
+        // Process referral if referral code is provided
+        if (request.getReferralCode() != null && !request.getReferralCode().trim().isEmpty()) {
+            rewardService.processReferral(savedUser.getId(), request.getReferralCode().toUpperCase());
+        }
+        
         log.info("Created user with role {} and default profile image: {} -> {}", 
             role, request.getEmail(), defaultProfileImageUrl);
         
@@ -242,10 +261,25 @@ public class UserService implements UserDetailsService {
                     .sum();
         }
         
-        log.info("User profile statistics for {}: stories={}, likes={}, views={}, comments={}", 
-            userId, totalStories, totalLikes, totalViews, totalComments);
+        // Get referral information
+        String referredByUserName = null;
+        if (user.getReferredBy() != null) {
+            Optional<User> referrer = userRepository.findById(user.getReferredBy());
+            referredByUserName = referrer.map(User::getName).orElse(null);
+        }
         
-        return UserProfileResponse.fromUser(user, totalStories, totalLikes, totalViews, totalComments);
+        // Get referral history (coin history related to referrals)
+        List<CoinHistoryResponse> referralHistory = coinHistoryRepository.findByUserId(userId)
+                .stream()
+                .filter(coinHistory -> coinHistory.getReason().contains("referral"))
+                .map(CoinHistoryResponse::fromCoinHistory)
+                .collect(Collectors.toList());
+        
+        log.info("User profile statistics for {}: stories={}, likes={}, views={}, comments={}, coins={}, referredBy={}", 
+            userId, totalStories, totalLikes, totalViews, totalComments, user.getCoinBalance(), referredByUserName);
+        
+        return UserProfileResponse.fromUserWithReferralInfo(user, totalStories, totalLikes, totalViews, totalComments, 
+                                                          referredByUserName, referralHistory);
     }
     
     public UserProfileResponse getUserProfile(String userEmail) {

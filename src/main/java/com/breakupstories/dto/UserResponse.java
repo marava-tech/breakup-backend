@@ -24,6 +24,9 @@ public class UserResponse {
     private String profileImageUrl;
     private String preferredStoryLanguage;
     private Role role;
+    private Integer coinBalance;
+    private String referralCode;
+    private String referredBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
@@ -37,6 +40,9 @@ public class UserResponse {
                 .profileImageUrl(user.getProfileImageUrl())
                 .preferredStoryLanguage(user.getPreferredStoryLanguage())
                 .role(user.getRole())
+                .coinBalance(user.getCoinBalance())
+                .referralCode(user.getReferralCode())
+                .referredBy(user.getReferredBy())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();

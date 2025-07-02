@@ -4,6 +4,7 @@ import com.breakupstories.model.Story;
 import com.breakupstories.repository.StoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,6 +25,8 @@ public class AsyncStoryProcessingService {
     private final UploadService uploadService;
     private final MockAIService mockAIService;
     private final StoryRepository storyRepository;
+    @Lazy
+    private final RewardService rewardService;
 
     @Async
     public void processStoryAsync(Story story, byte[] audioFileContent, String originalFilename, String contentType, String latitude, String longitude, String requestId) {
@@ -106,5 +109,10 @@ public class AsyncStoryProcessingService {
         story.setStatus(status);
         storyRepository.save(story);
         log.info("Story status updated to {}: {}", status, storyId);
+        
+        // Check for story active reward when status becomes ACTIVE
+        if (status == Story.StoryStatus.ACTIVE) {
+            rewardService.checkStoryActiveReward(storyId);
+        }
     }
 } 

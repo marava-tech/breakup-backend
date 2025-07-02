@@ -1,0 +1,55 @@
+[
+    {
+      "key": "default_referral_reward_points",
+      "value": "50",
+      "description": "Default reward points for referring a new user",
+      "active": true
+    },
+    {
+      "key": "default_referral_welcome_points",
+      "value": "30",
+      "description": "Default welcome points for new user who was referred",
+      "active": true
+    },
+    {
+      "key": "default_story_active_points",
+      "value": "50",
+      "description": "Default points for story becoming active (duration > 10 minutes)",
+      "active": true
+    },
+    {
+      "key": "default_100_likes_points",
+      "value": "15",
+      "description": "Default points for reaching 100 likes milestone",
+      "active": true
+    },
+    {
+      "key": "default_1000_views_points",
+      "value": "15",
+      "description": "Default points for reaching 1000 views milestone",
+      "active": true
+    },
+    {
+      "key": "referral_code_length",
+      "value": "8",
+      "description": "Length of generated referral codes",
+      "active": true
+    },
+    {
+      "key": "max_referrals_per_user",
+      "value": "100",
+      "description": "Maximum number of referrals allowed per user",
+      "active": true
+    },
+    {
+      "key": "referral_bonus_expiry_days",
+      "value": "30",
+      "description": "Number of days after which referral bonus expires",
+      "active": true
+    }, {
+  "key": "1_rupee_equals_in_coins",
+  "value": "2",
+  "description": "Default points for story becoming active (duration > 10 minutes)",
+  "active": true
+}
+]

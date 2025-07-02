@@ -8,6 +8,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
+import java.time.LocalDateTime;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -90,7 +91,7 @@ public class OTPServiceImpl implements OTPService {
                                         <p>If you didn't request this OTP, please ignore this email.</p>
                                     </div>
                                     <div class="footer">
-                                        <p>&copy; 2024 Breakup Stories. All rights reserved.</p>
+                                        <p>&copy; %s Breakup Stories. All rights reserved.</p>
                                     </div>
                                 </div>
                             </body>
@@ -104,7 +105,7 @@ public class OTPServiceImpl implements OTPService {
         emailOtpMap.put(email, otp);
         try {
             var gmailContent = getUnFormattedGmailContent();
-            var formattedGmailContent = String.format(gmailContent, otp);
+            var formattedGmailContent = String.format(gmailContent, otp, LocalDateTime.now().getYear());
             gmailSender.sendGmail(email, "Breakup Stories Verification OTP", formattedGmailContent);
             log.info("Successfully sent OTP to email: {}", email);
             return true;

@@ -9,9 +9,11 @@ import com.breakupstories.model.Story;
 import com.breakupstories.model.StoryMetadata;
 import com.breakupstories.model.User;
 import com.breakupstories.repository.StoryRepository;
+import com.breakupstories.util.ApplicationContextProvider;
 import com.breakupstories.util.RequestContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,7 +32,9 @@ public class StoryService {
     private final StoryRepository storyRepository;
     private final LikeService likeService;
     private final CommentService commentService;
+    @Lazy
     private final UserService userService;
+    @Lazy
     private final BookmarkService bookmarkService;
     private final AsyncStoryProcessingService asyncStoryProcessingService;
 
@@ -344,6 +348,10 @@ public class StoryService {
                 .build();
         LikeResponse likeResponse = likeService.createLike(userId, likeRequest);
         
+        // Check for likes milestone reward
+        RewardService rewardService = ApplicationContextProvider.getBean(RewardService.class);
+        rewardService.checkLikesMilestoneReward(storyId);
+        
         log.info("User {} successfully liked story {}", userId, storyId);
         return likeResponse;
     }
@@ -436,6 +444,16 @@ public class StoryService {
     }
 
     
+    /**
+     * Get Story entity by ID
+     * @param storyId The story ID
+     * @return Story entity
+     */
+    public Story getStoryEntityById(String storyId) {
+        return storyRepository.findById(storyId)
+                .orElseThrow(() -> new RuntimeException("Story not found with ID: " + storyId));
+    }
+    
     public void incrementViewCount(String storyId) {
         Story story = storyRepository.findById(storyId)
                 .orElseThrow(() -> new RuntimeException("Story not found with ID: " + storyId));
@@ -448,6 +466,10 @@ public class StoryService {
         
         storyRepository.save(story);
         log.debug("View count incremented for story: {}", storyId);
+        
+        // Check for views milestone reward
+        RewardService rewardService = ApplicationContextProvider.getBean(RewardService.class);
+        rewardService.checkViewsMilestoneReward(storyId);
     }
 
     /**
