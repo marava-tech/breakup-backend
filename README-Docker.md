@@ -129,11 +129,7 @@ UPLOAD_SERVICE_URL=https://your-upload-service.com
 #### Optional
 
 ```bash
-# Audio Streaming
-AUDIO_BUFFER_SIZE=8192
-AUDIO_CACHE_DURATION=3600
-AUDIO_MAX_RANGE_SIZE=1048576
-AUDIO_ENABLE_CACHING=true
+
 
 # Logging
 LOG_LEVEL=INFO

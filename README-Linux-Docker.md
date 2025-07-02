@@ -115,11 +115,7 @@ GMAIL_APP_PASSWORD=your-app-password
 UPLOAD_SERVICE_URL=http://localhost:9090
 UPLOAD_SERVICE_ENDPOINT=/api/v1/upload
 
-# Audio Streaming Configuration
-AUDIO_BUFFER_SIZE=8192
-AUDIO_CACHE_DURATION=3600
-AUDIO_MAX_RANGE_SIZE=1048576
-AUDIO_ENABLE_CACHING=true
+
 
 # Logging
 LOG_LEVEL=INFO
@@ -237,7 +233,7 @@ To scale horizontally:
 - **JVM tuning**: Optimized for Linux containers
 - **MongoDB indexing**: Automatic on startup
 - **Nginx caching**: Configured for static content
-- **Audio streaming**: Optimized for range requests
+
 
 ## 🛠️ Troubleshooting
 

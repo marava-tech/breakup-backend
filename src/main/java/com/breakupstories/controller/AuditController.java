@@ -123,26 +123,7 @@ public class AuditController {
         return ResponseEntity.ok(analytics);
     }
     
-    @GetMapping("/analytics/audio-playback")
-    @PreAuthorize("hasAuthority('ADMIN')")
-    @Operation(summary = "Get audio playback analytics", description = "Get analytics for audio playback events")
-    public ResponseEntity<Map<String, Object>> getAudioPlaybackAnalytics(
-            @RequestParam(required = false) String storyId,
-            @RequestParam(required = false) String userId) {
-        
-        // This would typically call a service method for analytics
-        // For now, return a placeholder response
-        Map<String, Object> analytics = Map.of(
-            "total_plays", 0,
-            "total_pauses", 0,
-            "total_stops", 0,
-            "average_duration", 0.0,
-            "story_id", storyId,
-            "user_id", userId
-        );
-        
-        return ResponseEntity.ok(analytics);
-    }
+
     
     @GetMapping("/analytics/user-activity")
     @PreAuthorize("hasAuthority('ADMIN')")
@@ -158,7 +139,6 @@ public class AuditController {
             "story_views", 0,
             "likes", 0,
             "comments", 0,
-            "audio_plays", 0,
             "user_id", userId,
             "date_range", dateRange
         );

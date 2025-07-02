@@ -39,11 +39,11 @@ public class Audit {
     private Long updatedAt;
     
     public enum EntityType {
-        STORY, COMMENT, BOOKMARK, FEEDBACK, USER, AUDIO,  NOTIFICATION
+        STORY, COMMENT, BOOKMARK, FEEDBACK, USER, NOTIFICATION
     }
     
     public enum ActionType {
-        CREATE, UPDATE, DELETE, VIEW, LIKE, UNLIKE, COMMENT, PLAY, PAUSE, STOP, SHARE, DOWNLOAD , MATCH
+        CREATE, UPDATE, DELETE, VIEW, LIKE, UNLIKE, COMMENT, SHARE, DOWNLOAD, MATCH
     }
     
     // Helper methods for common metadata

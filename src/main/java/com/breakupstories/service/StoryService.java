@@ -5,7 +5,6 @@ import com.breakupstories.dto.LikeResponse;
 import com.breakupstories.dto.PagedResponse;
 import com.breakupstories.dto.StoryResponse;
 import com.breakupstories.dto.CommentResponse;
-import com.breakupstories.dto.UploadResponse;
 import com.breakupstories.model.Story;
 import com.breakupstories.model.StoryMetadata;
 import com.breakupstories.model.User;
