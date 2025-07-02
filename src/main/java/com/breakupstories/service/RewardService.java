@@ -8,9 +8,11 @@ import com.breakupstories.model.User;
 import com.breakupstories.repository.CoinHistoryRepository;
 import com.breakupstories.repository.StoryRepository;
 import com.breakupstories.repository.UserRepository;
+import com.breakupstories.repository.FeedbackRepository;
 import com.breakupstories.service.DefaultConfigService;
 import com.breakupstories.util.ApplicationContextProvider;
 import com.breakupstories.dto.RewardConfigResponse;
+import com.breakupstories.model.Feedback;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ public class RewardService {
     private final CoinHistoryRepository coinHistoryRepository;
     private final UserRepository userRepository;
     private final StoryRepository storyRepository;
+    private final FeedbackRepository feedbackRepository;
     private final DefaultConfigService defaultConfigService;
 
     private static final int LIKES_MILESTONE = 100;
@@ -226,6 +229,32 @@ public class RewardService {
     }
     
     /**
+     * Check and reward for feedback pro milestone (5 resolved feedbacks of type BUG_REPORT or FEATURE_REQUEST)
+     */
+    public void checkFeedbackProReward(String userId) {
+        // Check if user already received this reward
+        if (coinHistoryRepository.existsByUserIdAndReason(userId, "feedback_pro")) {
+            log.info("User {} already received feedback pro reward", userId);
+            return;
+        }
+        
+        // Count resolved feedbacks of type BUG_REPORT or FEATURE_REQUEST
+        long resolvedBugReports = feedbackRepository.countByUserIdAndTypeAndStatus(
+            userId, Feedback.FeedbackType.BUG_REPORT, Feedback.FeedbackStatus.RESOLVED);
+        long resolvedFeatureRequests = feedbackRepository.countByUserIdAndTypeAndStatus(
+            userId, Feedback.FeedbackType.FEATURE_REQUEST, Feedback.FeedbackStatus.RESOLVED);
+        
+        long totalResolvedFeedbacks = resolvedBugReports + resolvedFeatureRequests;
+        
+        if (totalResolvedFeedbacks >= 5) {
+            int rewardPoints = Integer.parseInt(defaultConfigService.getByKey("5_feedbacks_points").getValue());
+            addCoins(userId, rewardPoints, "feedback_pro", null);
+            log.info("Awarded {} coins to user {} for feedback pro milestone ({} resolved feedbacks)", 
+                rewardPoints, userId, totalResolvedFeedbacks);
+        }
+    }
+    
+    /**
      * Get all reward and referral configurations as key-value pairs for frontend display
      */
     public RewardConfigResponse getRewardConfigurations() {
@@ -240,6 +269,8 @@ public class RewardService {
                 defaultConfigService.getByKey("default_100_likes_points").getValue());
             rewardConfigs.put("thousandViewsMilestone", 
                 defaultConfigService.getByKey("default_1000_views_points").getValue());
+            rewardConfigs.put("feedbackProReward", 
+                defaultConfigService.getByKey("5_feedbacks_points").getValue());
             
             // Referral configurations
             referralConfigs.put("referrerReward", 
@@ -260,6 +291,7 @@ public class RewardService {
             rewardConfigs.put("storyActiveReward", "50");
             rewardConfigs.put("hundredLikesMilestone", "15");
             rewardConfigs.put("thousandViewsMilestone", "15");
+            rewardConfigs.put("feedbackProReward", "60");
             referralConfigs.put("referrerReward", "50");
             referralConfigs.put("referredUserWelcomeBonus", "30");
             referralConfigs.put("maxReferralsPerUser", "100");

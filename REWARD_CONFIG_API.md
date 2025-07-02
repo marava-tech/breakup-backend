@@ -15,7 +15,8 @@ Returns all reward and referral configurations as key-value pairs.
   "rewardConfigs": {
     "storyActiveReward": "50",
     "hundredLikesMilestone": "15",
-    "thousandViewsMilestone": "15"
+    "thousandViewsMilestone": "15",
+    "feedbackProReward": "60"
   },
   "referralConfigs": {
     "referrerReward": "50",
@@ -31,6 +32,7 @@ Returns all reward and referral configurations as key-value pairs.
 - `storyActiveReward`: Points awarded for stories that become active (duration > 10 minutes)
 - `hundredLikesMilestone`: Points awarded for reaching 100 likes milestone
 - `thousandViewsMilestone`: Points awarded for reaching 1000 views milestone
+- `feedbackProReward`: Points awarded for providing 5 resolved feedbacks (bug reports or feature requests)
 
 ### Referral Configurations
 - `referrerReward`: Points awarded to the user who refers someone
@@ -47,6 +49,7 @@ const config = await response.json();
 // Display reward information
 console.log(`Upload a story and get ${config.rewardConfigs['storyActiveReward']} coins!`);
 console.log(`Reach 100 likes and earn ${config.rewardConfigs['hundredLikesMilestone']} coins!`);
+console.log(`Provide 5 resolved feedbacks and earn ${config.rewardConfigs['feedbackProReward']} coins!`);
 console.log(`Refer a friend and get ${config.referralConfigs['referrerReward']} coins!`);
 ```
 
@@ -68,6 +71,7 @@ If the configuration retrieval fails, the API returns default values:
 - `storyActiveReward`: 50
 - `hundredLikesMilestone`: 15
 - `thousandViewsMilestone`: 15
+- `feedbackProReward`: 60
 - `referrerReward`: 50
 - `referredUserWelcomeBonus`: 30
 - `maxReferralsPerUser`: 100 

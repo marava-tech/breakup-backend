@@ -43,6 +43,11 @@ public interface CoinHistoryRepository extends MongoRepository<CoinHistory, Stri
     boolean existsByUserIdAndReasonAndRelatedEntityId(String userId, String reason, String relatedEntityId);
     
     /**
+     * Check if a user has already received a reward for a specific reason
+     */
+    boolean existsByUserIdAndReason(String userId, String reason);
+    
+    /**
      * Get total coins earned by a user
      */
     @Query(value = "{'userId': ?0}", fields = "{'count': 1}")
