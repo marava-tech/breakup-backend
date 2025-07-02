@@ -7,6 +7,7 @@ import com.breakupstories.model.Feedback;
 import com.breakupstories.model.User;
 import com.breakupstories.repository.FeedbackRepository;
 import com.breakupstories.repository.UserRepository;
+import com.breakupstories.util.ApplicationContextProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -158,6 +159,18 @@ public class FeedbackService {
         feedback.setAdminResponse(adminResponse);
         
         Feedback updatedFeedback = feedbackRepository.save(feedback);
+        
+        // Check for feedback pro reward if status is changed to RESOLVED
+        if (status == Feedback.FeedbackStatus.RESOLVED && 
+            (feedback.getType() == Feedback.FeedbackType.BUG_REPORT || 
+             feedback.getType() == Feedback.FeedbackType.FEATURE_REQUEST)) {
+            
+            // Get RewardService from ApplicationContext to avoid circular dependency
+            com.breakupstories.service.RewardService rewardService = 
+                ApplicationContextProvider.getBean(com.breakupstories.service.RewardService.class);
+            rewardService.checkFeedbackProReward(feedback.getUserId());
+        }
+        
         return enrichFeedbackResponse(updatedFeedback);
     }
     
