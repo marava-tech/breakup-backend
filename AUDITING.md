@@ -105,9 +105,7 @@ public class ClientInfoService {
 #### CommentController
 - **Comment Creation**: Audited when users create comments
 
-#### AudioStreamController
-- **Audio Playback**: Audited when users play, pause, or stop audio
-- **Stream Requests**: Basic play events when streaming audio
+
 
 ## 📡 API Endpoints
 
@@ -151,11 +149,7 @@ GET /api/audits/analytics/story-views?storyId={storyId}&userId={userId}
 Authorization: Bearer <admin-token>
 ```
 
-#### Audio Playback Analytics
-```http
-GET /api/audits/analytics/audio-playback?storyId={storyId}&userId={userId}
-Authorization: Bearer <admin-token>
-```
+
 
 #### User Activity Analytics
 ```http
@@ -163,25 +157,7 @@ GET /api/audits/analytics/user-activity?userId={userId}&dateRange={dateRange}
 Authorization: Bearer <admin-token>
 ```
 
-### Audio Event Logging
 
-#### Log Audio Play Event
-```http
-POST /api/audio/play/{storyId}?duration={duration}&position={position}
-Authorization: Bearer <user-token>
-```
-
-#### Log Audio Pause Event
-```http
-POST /api/audio/pause/{storyId}?duration={duration}&position={position}
-Authorization: Bearer <user-token>
-```
-
-#### Log Audio Stop Event
-```http
-POST /api/audio/stop/{storyId}?duration={duration}&position={position}
-Authorization: Bearer <user-token>
-```
 
 ## 📈 Analytics Examples
 
@@ -195,17 +171,7 @@ Authorization: Bearer <user-token>
 }
 ```
 
-### Audio Playback Analytics Response
-```json
-{
-  "total_plays": 890,
-  "total_pauses": 234,
-  "total_stops": 156,
-  "average_duration": 180.5,
-  "story_id": "story123",
-  "user_id": "user456"
-}
-```
+
 
 ### User Activity Analytics Response
 ```json
@@ -214,7 +180,7 @@ Authorization: Bearer <user-token>
   "story_views": 450,
   "likes": 234,
   "comments": 89,
-  "audio_plays": 477,
+
   "user_id": "user456",
   "date_range": "last_30_days"
 }
@@ -233,13 +199,7 @@ db.audits.find({
 })
 ```
 
-#### Get all audio playback events for a user
-```javascript
-db.audits.find({
-  userId: "user456",
-  entityType: "AUDIO"
-})
-```
+
 
 #### Get user activity in the last 7 days
 ```javascript

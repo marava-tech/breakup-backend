@@ -102,35 +102,7 @@ public class AuditService {
         logAudit(userId, Audit.EntityType.COMMENT, Audit.ActionType.CREATE, storyId, userAgent, ipAddress, sessionId, metadata);
     }
     
-    public void logAudioPlay(String userId, String storyId, String userAgent, String ipAddress, String sessionId, 
-                           Long duration, Long position) {
-        Map<String, Object> metadata = Map.of(
-            "interaction_type", "audio_play",
-            "duration", duration,
-            "position", position
-        );
-        logAudit(userId, Audit.EntityType.AUDIO, Audit.ActionType.PLAY, storyId, userAgent, ipAddress, sessionId, metadata);
-    }
-    
-    public void logAudioPause(String userId, String storyId, String userAgent, String ipAddress, String sessionId, 
-                            Long duration, Long position) {
-        Map<String, Object> metadata = Map.of(
-            "interaction_type", "audio_pause",
-            "duration", duration,
-            "position", position
-        );
-        logAudit(userId, Audit.EntityType.AUDIO, Audit.ActionType.PAUSE, storyId, userAgent, ipAddress, sessionId, metadata);
-    }
-    
-    public void logAudioStop(String userId, String storyId, String userAgent, String ipAddress, String sessionId, 
-                           Long duration, Long position) {
-        Map<String, Object> metadata = Map.of(
-            "interaction_type", "audio_stop",
-            "duration", duration,
-            "position", position
-        );
-        logAudit(userId, Audit.EntityType.AUDIO, Audit.ActionType.STOP, storyId, userAgent, ipAddress, sessionId, metadata);
-    }
+
     
     public void logBookmarkCreate(String userId, String storyId, String userAgent, String ipAddress, String sessionId) {
         Map<String, Object> metadata = Map.of("interaction_type", "bookmark_create");

@@ -44,7 +44,7 @@ docker-compose -f docker-compose-standalone.yml logs -f
   - Story management
   - User authentication
   - File uploads
-  - Audio streaming
+
   - Comments and likes
   - Notifications
 

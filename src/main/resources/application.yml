@@ -45,13 +45,7 @@ jwt:
   expiration: 2592000000 # 30 days in milliseconds
 
 
-# Audio Streaming Configuration
-audio:
-  streaming:
-    buffer-size: ${AUDIO_BUFFER_SIZE:8192}
-    cache-duration: ${AUDIO_CACHE_DURATION:3600}
-    max-range-size: ${AUDIO_MAX_RANGE_SIZE:1048576} # 1MB chunks
-    enable-caching: ${AUDIO_ENABLE_CACHING:true}
+
 
 logging:
   level:
