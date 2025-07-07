@@ -87,7 +87,7 @@ management:
 # AI Service Configuration
 ai:
   service:
-    provider: mock  # Change to "real" to use actual AI service
+    provider: real  # Change to "real" to use actual AI service
     enabled: true
     base-url: http://breakupai.marava.tech # Replace with your AI service URL
     api-key: ${AI_SERVICE_API_KEY:your-api-key-here}
