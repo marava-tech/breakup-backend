@@ -202,6 +202,18 @@ public class GlobalExceptionHandler {
                         .build());
     }
 
+    @ExceptionHandler(LocationNotProvidedException.class)
+    public ResponseEntity<ErrorResponse> handleLocationNotProvidedException(LocationNotProvidedException ex) {
+        log.error("Location not provided: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.builder()
+                        .message(ex.getMessage())
+                        .error("Location Not Provided")
+                        .service("Location")
+                        .timestamp(System.currentTimeMillis())
+                        .build());
+    }
+
     @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
     public ResponseEntity<ErrorResponse> handleMaxUploadSizeExceededException(org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
         log.error("File upload size exceeded: {}", ex.getMessage());

@@ -5,9 +5,9 @@ import com.breakupstories.dto.LikeResponse;
 import com.breakupstories.dto.PagedResponse;
 import com.breakupstories.dto.StoryResponse;
 import com.breakupstories.dto.CommentResponse;
-import com.breakupstories.dto.LocationInfoResponse;
 import com.breakupstories.dto.StorySearchRequest;
 import com.breakupstories.dto.StorySearchResponse;
+import com.breakupstories.dto.StoryWithTrendingScore;
 import com.breakupstories.model.Story;
 import com.breakupstories.model.StoryDataStore;
 import com.breakupstories.model.StoryMetadata;
@@ -18,6 +18,7 @@ import com.breakupstories.repository.UserRepository;
 import com.breakupstories.util.ApplicationContextProvider;
 import com.breakupstories.util.RequestContext;
 import com.breakupstories.util.ListUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
@@ -149,50 +150,145 @@ public class StoryService {
     }
     
     /**
-     * Get trending stories sorted by view count (for unauthenticated users)
+     * Get trending stories sorted by trending score (for unauthenticated users)
+     * Trending score = (likes * 1.0) + (views * 0.4) + (comments * 0.6)
      * @param page Page number
      * @param size Page size
      * @return PagedResponse of trending stories
      */
     public PagedResponse<StoryResponse> getTrendingStories(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Story> storyPage = storyRepository.findByStatusOrderByViewCountDesc(Story.StoryStatus.ACTIVE, pageable);
+        String requestId = RequestContext.getRequestId();
+        log.info("Getting trending stories for unauthenticated user [RequestID: {}]", requestId);
         
-        List<StoryResponse> stories = storyPage.getContent().stream()
-                .map(story -> {
-                    User user = userService.getUserEntityById(story.getUserId());
-                    long likeCount = getLikeCount(story.getId());
-                    long commentCount = getCommentCount(story.getId());
-                    return StoryResponse.fromStory(story, user, false, false, likeCount, commentCount);
-                })
-                .collect(Collectors.toList());
-        
-        return PagedResponse.of(stories, page, size, storyPage.getTotalElements());
+        try {
+            // Get all active stories
+            List<Story> allActiveStories = storyRepository.findByStatus(Story.StoryStatus.ACTIVE);
+            
+            // Calculate trending scores and create StoryWithTrendingScore objects
+            List<StoryWithTrendingScore> storiesWithScores = allActiveStories.stream()
+                    .map(story -> {
+                        try {
+                            long likeCount = getLikeCount(story.getId());
+                            long viewCount = story.getViewCount() != null ? story.getViewCount() : 0L;
+                            long commentCount = getCommentCount(story.getId());
+                            
+                            return StoryWithTrendingScore.fromStory(story, likeCount, viewCount, commentCount);
+                        } catch (Exception e) {
+                            log.warn("Error calculating trending score for story {} [RequestID: {}]: {}", 
+                                    story.getId(), requestId, e.getMessage());
+                            return null;
+                        }
+                    })
+                    .filter(storyWithScore -> storyWithScore != null)
+                    .sorted((s1, s2) -> Double.compare(s2.getTrendingScore(), s1.getTrendingScore())) // Sort by trending score descending
+                    .collect(Collectors.toList());
+            
+            log.info("Calculated trending scores for {} stories [RequestID: {}]", storiesWithScores.size(), requestId);
+            
+            // Apply pagination
+            int startIndex = page * size;
+            int endIndex = Math.min(startIndex + size, storiesWithScores.size());
+            
+            List<StoryResponse> paginatedStories = storiesWithScores.stream()
+                    .skip(startIndex)
+                    .limit(size)
+                    .map(storyWithScore -> {
+                        try {
+                            Story story = storyWithScore.getStory();
+                            User user = userService.getUserEntityById(story.getUserId());
+                            return StoryResponse.fromStory(story, user, false, false, 
+                                    storyWithScore.getLikeCount(), storyWithScore.getCommentCount());
+                        } catch (Exception e) {
+                            log.error("Error creating StoryResponse for trending story {} [RequestID: {}]: {}", 
+                                    storyWithScore.getStory().getId(), requestId, e.getMessage());
+                            return null;
+                        }
+                    })
+                    .filter(story -> story != null)
+                    .collect(Collectors.toList());
+            
+            log.info("Returning {} trending stories for page {} [RequestID: {}]", 
+                    paginatedStories.size(), page, requestId);
+            
+            return PagedResponse.of(paginatedStories, page, size, (long) storiesWithScores.size());
+            
+        } catch (Exception e) {
+            log.error("Error getting trending stories [RequestID: {}]: {}", requestId, e.getMessage(), e);
+            throw new RuntimeException("Failed to get trending stories: " + e.getMessage(), e);
+        }
     }
     
     /**
-     * Get trending stories sorted by view count (for authenticated users)
+     * Get trending stories sorted by trending score (for authenticated users)
+     * Trending score = (likes * 1.0) + (views * 0.4) + (comments * 0.6)
      * @param currentUserId The current user ID
      * @param page Page number
      * @param size Page size
      * @return PagedResponse of trending stories with user context
      */
     public PagedResponse<StoryResponse> getTrendingStories(String currentUserId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Story> storyPage = storyRepository.findByStatusOrderByViewCountDesc(Story.StoryStatus.ACTIVE, pageable);
+        String requestId = RequestContext.getRequestId();
+        log.info("Getting trending stories for user: {} [RequestID: {}]", currentUserId, requestId);
         
-        List<StoryResponse> stories = storyPage.getContent().stream()
-                .map(story -> {
-                    User user = userService.getUserEntityById(story.getUserId());
-                    boolean likedByMe = likeService.isLiked(currentUserId, story.getId());
-                    boolean bookmarkedByMe = bookmarkService.isBookmarked(currentUserId, story.getId());
-                    long likeCount = getLikeCount(story.getId());
-                    long commentCount = getCommentCount(story.getId());
-                    return StoryResponse.fromStory(story, user, likedByMe, bookmarkedByMe, likeCount, commentCount);
-                })
-                .collect(Collectors.toList());
-        
-        return PagedResponse.of(stories, page, size, storyPage.getTotalElements());
+        try {
+            // Get all active stories
+            List<Story> allActiveStories = storyRepository.findByStatus(Story.StoryStatus.ACTIVE);
+            
+            // Calculate trending scores and create StoryWithTrendingScore objects
+            List<StoryWithTrendingScore> storiesWithScores = allActiveStories.stream()
+                    .map(story -> {
+                        try {
+                            long likeCount = getLikeCount(story.getId());
+                            long viewCount = story.getViewCount() != null ? story.getViewCount() : 0L;
+                            long commentCount = getCommentCount(story.getId());
+                            
+                            return StoryWithTrendingScore.fromStory(story, likeCount, viewCount, commentCount);
+                        } catch (Exception e) {
+                            log.warn("Error calculating trending score for story {} [RequestID: {}]: {}", 
+                                    story.getId(), requestId, e.getMessage());
+                            return null;
+                        }
+                    })
+                    .filter(storyWithScore -> storyWithScore != null)
+                    .sorted((s1, s2) -> Double.compare(s2.getTrendingScore(), s1.getTrendingScore())) // Sort by trending score descending
+                    .collect(Collectors.toList());
+            
+            log.info("Calculated trending scores for {} stories [RequestID: {}]", storiesWithScores.size(), requestId);
+            
+            // Apply pagination
+            int startIndex = page * size;
+            int endIndex = Math.min(startIndex + size, storiesWithScores.size());
+            
+            List<StoryResponse> paginatedStories = storiesWithScores.stream()
+                    .skip(startIndex)
+                    .limit(size)
+                    .map(storyWithScore -> {
+                        try {
+                            Story story = storyWithScore.getStory();
+                            User user = userService.getUserEntityById(story.getUserId());
+                            boolean likedByMe = likeService.isLiked(currentUserId, story.getId());
+                            boolean bookmarkedByMe = bookmarkService.isBookmarked(currentUserId, story.getId());
+                            return StoryResponse.fromStory(story, user, likedByMe, bookmarkedByMe, 
+                                    storyWithScore.getLikeCount(), storyWithScore.getCommentCount());
+                        } catch (Exception e) {
+                            log.error("Error creating StoryResponse for trending story {} [RequestID: {}]: {}", 
+                                    storyWithScore.getStory().getId(), requestId, e.getMessage());
+                            return null;
+                        }
+                    })
+                    .filter(story -> story != null)
+                    .collect(Collectors.toList());
+            
+            log.info("Returning {} trending stories for page {} [RequestID: {}]", 
+                    paginatedStories.size(), page, requestId);
+            
+            return PagedResponse.of(paginatedStories, page, size, (long) storiesWithScores.size());
+            
+        } catch (Exception e) {
+            log.error("Error getting trending stories for user {} [RequestID: {}]: {}", 
+                    currentUserId, requestId, e.getMessage(), e);
+            throw new RuntimeException("Failed to get trending stories: " + e.getMessage(), e);
+        }
     }
 
 
@@ -216,28 +312,143 @@ public class StoryService {
 
 
     /**
-     * Get trending stories with user context (includes likedByMe status)
+     * Get nearby stories efficiently by filtering StoryDataStore first
      * @param currentUserId The current user ID
+     * @param request HttpServletRequest to extract location coordinates
      * @param page Page number
      * @param size Page size
-     * @return PagedResponse of trending stories with user context
+     * @return PagedResponse of nearby stories with user context
      */
-    public PagedResponse<StoryResponse> getNearbyStories(String currentUserId, int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Story> storyPage = storyRepository.findByStatusOrderByViewCountDesc(Story.StoryStatus.ACTIVE, pageable);
+    public PagedResponse<StoryResponse> getNearbyStoriesEfficient(String currentUserId, HttpServletRequest request, int page, int size) {
+        String requestId = RequestContext.getRequestId();
+        log.info("Getting nearby stories efficiently for user: {} [RequestID: {}]", currentUserId, requestId);
         
-        List<StoryResponse> stories = storyPage.getContent().stream()
-                .map(story -> {
-                    User user = userService.getUserEntityById(story.getUserId());
-                    boolean likedByMe = likeService.isLiked(currentUserId, story.getId());
-                    boolean bookmarkedByMe = bookmarkService.isBookmarked(currentUserId, story.getId());
-                    long likeCount = getLikeCount(story.getId());
-                    long commentCount = getCommentCount(story.getId());
-                    return StoryResponse.fromStory(story, user, likedByMe, bookmarkedByMe, likeCount, commentCount);
-                })
-                .collect(Collectors.toList());
-        
-        return PagedResponse.of(stories, page, size, storyPage.getTotalElements());
+        try {
+            // Extract latitude and longitude from request headers
+            String latitudeStr = request.getHeader("X-Latitude");
+            String longitudeStr = request.getHeader("X-Longitude");
+            
+            // Validate location coordinates
+            if (latitudeStr == null || longitudeStr == null || 
+                latitudeStr.trim().isEmpty() || longitudeStr.trim().isEmpty()) {
+                log.error("Location coordinates not provided for nearby stories [RequestID: {}]", requestId);
+                throw new com.breakupstories.exception.LocationNotProvidedException(
+                    "Location coordinates are required for nearby stories. Please provide X-Latitude and X-Longitude headers.");
+            }
+            
+            // Parse coordinates
+            Double userLatitude, userLongitude;
+            try {
+                userLatitude = Double.parseDouble(latitudeStr.trim());
+                userLongitude = Double.parseDouble(longitudeStr.trim());
+            } catch (NumberFormatException e) {
+                log.error("Invalid coordinate format for nearby stories - lat: {}, long: {} [RequestID: {}]", 
+                        latitudeStr, longitudeStr, requestId);
+                throw new com.breakupstories.exception.LocationNotProvidedException(
+                    "Invalid coordinate format. Please provide valid latitude and longitude values.");
+            }
+            
+            log.info("User location for nearby stories - lat: {}, long: {} [RequestID: {}]", 
+                    userLatitude, userLongitude, requestId);
+            
+            // Step 1: Get all StoryDataStore entries with location coordinates
+            List<StoryDataStore> dataStoresWithLocation = storyDataStoreRepository.findStoriesWithLocationCoordinatesAndStatus(
+                    StoryDataStore.ProcessingStatus.COMPLETED);
+            
+            log.info("Found {} StoryDataStore entries with location coordinates [RequestID: {}]", 
+                    dataStoresWithLocation.size(), requestId);
+            
+            // Step 2: Filter by distance and get story IDs
+            List<String> nearbyStoryIds = dataStoresWithLocation.stream()
+                    .filter(dataStore -> {
+                        try {
+                            String storyLatStr = dataStore.getUploadMetadata().get("lat");
+                            String storyLongStr = dataStore.getUploadMetadata().get("long");
+                            
+                            if (storyLatStr != null && storyLongStr != null && 
+                                !storyLatStr.trim().isEmpty() && !storyLongStr.trim().isEmpty()) {
+                                
+                                double storyLat = Double.parseDouble(storyLatStr.trim());
+                                double storyLong = Double.parseDouble(storyLongStr.trim());
+                                
+                                // Calculate distance between user and story location
+                                double distance = com.breakupstories.util.DistanceCalculator.calculateDistance(
+                                        userLatitude, userLongitude, storyLat, storyLong);
+                                
+                                // Check if story is within 100km radius
+                                boolean isNearby = distance <= 100.0;
+                                
+                                if (isNearby) {
+                                    log.debug("Story {} is within 100km radius - distance: {}km [RequestID: {}]", 
+                                            dataStore.getStoryId(), distance, requestId);
+                                } else {
+                                    log.debug("Story {} is outside 100km radius - distance: {}km [RequestID: {}]", 
+                                            dataStore.getStoryId(), distance, requestId);
+                                }
+                                
+                                return isNearby;
+                            }
+                            return false;
+                        } catch (Exception e) {
+                            log.warn("Error calculating distance for story {} [RequestID: {}]: {}", 
+                                    dataStore.getStoryId(), requestId, e.getMessage());
+                            return false;
+                        }
+                    })
+                    .map(StoryDataStore::getStoryId)
+                    .collect(Collectors.toList());
+            
+            log.info("Found {} stories within 100km radius [RequestID: {}]", nearbyStoryIds.size(), requestId);
+            
+            // Step 3: If no nearby stories found, return empty response
+            if (nearbyStoryIds.isEmpty()) {
+                log.info("No nearby stories found within 100km radius [RequestID: {}]", requestId);
+                return PagedResponse.of(new ArrayList<>(), page, size, 0L);
+            }
+            
+            // Step 4: Fetch Story entities for the filtered story IDs
+            List<Story> nearbyStories = storyRepository.findByIdInAndStatus(nearbyStoryIds, Story.StoryStatus.ACTIVE);
+            
+            log.info("Retrieved {} active stories from {} nearby story IDs [RequestID: {}]", 
+                    nearbyStories.size(), nearbyStoryIds.size(), requestId);
+            
+            // Step 5: Convert to StoryResponse with pagination
+            int startIndex = page * size;
+            int endIndex = Math.min(startIndex + size, nearbyStories.size());
+            
+            List<StoryResponse> paginatedStories = nearbyStories.stream()
+                    .skip(startIndex)
+                    .limit(size)
+                    .map(story -> {
+                        try {
+                            User user = userService.getUserEntityById(story.getUserId());
+                            boolean likedByMe = likeService.isLiked(currentUserId, story.getId());
+                            boolean bookmarkedByMe = bookmarkService.isBookmarked(currentUserId, story.getId());
+                            long likeCount = getLikeCount(story.getId());
+                            long commentCount = getCommentCount(story.getId());
+                            return StoryResponse.fromStory(story, user, likedByMe, bookmarkedByMe, likeCount, commentCount);
+                        } catch (Exception e) {
+                            log.error("Error creating StoryResponse for story {} [RequestID: {}]: {}", 
+                                    story.getId(), requestId, e.getMessage());
+                            return null;
+                        }
+                    })
+                    .filter(story -> story != null)
+                    .collect(Collectors.toList());
+            
+            log.info("Returning {} nearby stories for page {} [RequestID: {}]", 
+                    paginatedStories.size(), page, requestId);
+            
+            return PagedResponse.of(paginatedStories, page, size, (long) nearbyStories.size());
+            
+        } catch (com.breakupstories.exception.LocationNotProvidedException e) {
+            log.error("Location not provided for nearby stories [RequestID: {}]: {}", requestId, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Error getting nearby stories efficiently for user {} [RequestID: {}]: {}", 
+                    currentUserId, requestId, e.getMessage(), e);
+            throw new RuntimeException("Failed to get nearby stories: " + e.getMessage(), e);
+        }
     }
 
 
@@ -714,5 +925,314 @@ public class StoryService {
         details.put("stepErrors", data.getStepErrors());
         
         return details;
+    }
+
+    /**
+     * Get nearby stories within 100km radius based on user's location
+     * @param currentUserId The current user ID
+     * @param request HttpServletRequest to extract location coordinates
+     * @param page Page number
+     * @param size Page size
+     * @return PagedResponse of nearby stories with user context
+     */
+    public PagedResponse<StoryResponse> getNearbyStories(String currentUserId, HttpServletRequest request, int page, int size) {
+        // Use the efficient implementation
+        return getNearbyStoriesEfficient(currentUserId, request, page, size);
+    }
+
+    /**
+     * Get trending stories with custom weights
+     * @param currentUserId The current user ID (can be null for unauthenticated users)
+     * @param page Page number
+     * @param size Page size
+     * @param likesWeight Weight for likes
+     * @param viewsWeight Weight for views
+     * @param commentsWeight Weight for comments
+     * @return PagedResponse of trending stories
+     */
+    public PagedResponse<StoryResponse> getTrendingStoriesWithCustomWeights(String currentUserId, int page, int size,
+                                                                          double likesWeight, double viewsWeight, double commentsWeight) {
+        String requestId = RequestContext.getRequestId();
+        log.info("Getting trending stories with custom weights - likes: {}, views: {}, comments: {} [RequestID: {}]", 
+                likesWeight, viewsWeight, commentsWeight, requestId);
+        
+        try {
+            // Get all active stories
+            List<Story> allActiveStories = storyRepository.findByStatus(Story.StoryStatus.ACTIVE);
+            
+            // Calculate trending scores with custom weights
+            List<StoryWithTrendingScore> storiesWithScores = allActiveStories.stream()
+                    .map(story -> {
+                        try {
+                            long likeCount = getLikeCount(story.getId());
+                            long viewCount = story.getViewCount() != null ? story.getViewCount() : 0L;
+                            long commentCount = getCommentCount(story.getId());
+                            
+                            // Calculate trending score with custom weights
+                            double trendingScore = com.breakupstories.util.TrendingScoreCalculator.calculateTrendingScore(
+                                    likeCount, viewCount, commentCount, likesWeight, viewsWeight, commentsWeight);
+                            
+                            return StoryWithTrendingScore.builder()
+                                    .story(story)
+                                    .trendingScore(trendingScore)
+                                    .likeCount(likeCount)
+                                    .viewCount(viewCount)
+                                    .commentCount(commentCount)
+                                    .build();
+                        } catch (Exception e) {
+                            log.warn("Error calculating trending score for story {} [RequestID: {}]: {}", 
+                                    story.getId(), requestId, e.getMessage());
+                            return null;
+                        }
+                    })
+                    .filter(storyWithScore -> storyWithScore != null)
+                    .sorted((s1, s2) -> Double.compare(s2.getTrendingScore(), s1.getTrendingScore())) // Sort by trending score descending
+                    .collect(Collectors.toList());
+            
+            log.info("Calculated trending scores for {} stories with custom weights [RequestID: {}]", 
+                    storiesWithScores.size(), requestId);
+            
+            // Apply pagination
+            int startIndex = page * size;
+            int endIndex = Math.min(startIndex + size, storiesWithScores.size());
+            
+            List<StoryResponse> paginatedStories = storiesWithScores.stream()
+                    .skip(startIndex)
+                    .limit(size)
+                    .map(storyWithScore -> {
+                        try {
+                            Story story = storyWithScore.getStory();
+                            User user = userService.getUserEntityById(story.getUserId());
+                            
+                            if (currentUserId != null) {
+                                // For authenticated users
+                                boolean likedByMe = likeService.isLiked(currentUserId, story.getId());
+                                boolean bookmarkedByMe = bookmarkService.isBookmarked(currentUserId, story.getId());
+                                return StoryResponse.fromStory(story, user, likedByMe, bookmarkedByMe, 
+                                        storyWithScore.getLikeCount(), storyWithScore.getCommentCount());
+                            } else {
+                                // For unauthenticated users
+                                return StoryResponse.fromStory(story, user, false, false, 
+                                        storyWithScore.getLikeCount(), storyWithScore.getCommentCount());
+                            }
+                        } catch (Exception e) {
+                            log.error("Error creating StoryResponse for trending story {} [RequestID: {}]: {}", 
+                                    storyWithScore.getStory().getId(), requestId, e.getMessage());
+                            return null;
+                        }
+                    })
+                    .filter(story -> story != null)
+                    .collect(Collectors.toList());
+            
+            log.info("Returning {} trending stories for page {} with custom weights [RequestID: {}]", 
+                    paginatedStories.size(), page, requestId);
+            
+            return PagedResponse.of(paginatedStories, page, size, (long) storiesWithScores.size());
+            
+        } catch (Exception e) {
+            log.error("Error getting trending stories with custom weights [RequestID: {}]: {}", 
+                    requestId, e.getMessage(), e);
+            throw new RuntimeException("Failed to get trending stories: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Search stories by title and tags
+     * @param searchTerm Search term for title (optional)
+     * @param tags List of tags to search (optional)
+     * @param currentUserId The current user ID (can be null for unauthenticated users)
+     * @param page Page number
+     * @param size Page size
+     * @return PagedResponse of stories matching the search criteria
+     */
+    public PagedResponse<StoryResponse> searchStoriesByTitleAndTags(String searchTerm, List<String> tags, 
+                                                                   String currentUserId, int page, int size) {
+        String requestId = RequestContext.getRequestId();
+        log.info("Searching stories by title and tags - searchTerm: {}, tags: {}, user: {} [RequestID: {}]", 
+                searchTerm, tags, currentUserId, requestId);
+        
+        try {
+            List<Story> matchingStories = new ArrayList<>();
+            
+            // Get all active stories
+            List<Story> allActiveStories = storyRepository.findByStatus(Story.StoryStatus.ACTIVE);
+            
+            // Filter stories based on search criteria
+            matchingStories = allActiveStories.stream()
+                    .filter(story -> {
+                        boolean matchesTitle = true;
+                        boolean matchesTags = true;
+                        
+                        // Check title match if searchTerm is provided
+                        if (searchTerm != null && !searchTerm.trim().isEmpty()) {
+                            String title = story.getTitle() != null ? story.getTitle().toLowerCase() : "";
+                            matchesTitle = title.contains(searchTerm.toLowerCase().trim());
+                        }
+                        
+                        // Check tags match if tags are provided
+                        if (tags != null && !tags.isEmpty()) {
+                            List<String> storyTags = story.getTags() != null ? story.getTags() : new ArrayList<>();
+                            // Check if any of the search tags match any of the story tags
+                            matchesTags = tags.stream()
+                                    .anyMatch(searchTag -> storyTags.stream()
+                                            .anyMatch(storyTag -> storyTag.toLowerCase().contains(searchTag.toLowerCase())));
+                        }
+                        
+                        return matchesTitle && matchesTags;
+                    })
+                    .collect(Collectors.toList());
+            
+            log.info("Found {} stories matching search criteria [RequestID: {}]", matchingStories.size(), requestId);
+            
+            // Apply pagination
+            int startIndex = page * size;
+            int endIndex = Math.min(startIndex + size, matchingStories.size());
+            
+            List<StoryResponse> paginatedStories = matchingStories.stream()
+                    .skip(startIndex)
+                    .limit(size)
+                    .map(story -> {
+                        try {
+                            User user = userService.getUserEntityById(story.getUserId());
+                            
+                            if (currentUserId != null) {
+                                // For authenticated users
+                                boolean likedByMe = likeService.isLiked(currentUserId, story.getId());
+                                boolean bookmarkedByMe = bookmarkService.isBookmarked(currentUserId, story.getId());
+                                long likeCount = getLikeCount(story.getId());
+                                long commentCount = getCommentCount(story.getId());
+                                return StoryResponse.fromStory(story, user, likedByMe, bookmarkedByMe, likeCount, commentCount);
+                            } else {
+                                // For unauthenticated users
+                                long likeCount = getLikeCount(story.getId());
+                                long commentCount = getCommentCount(story.getId());
+                                return StoryResponse.fromStory(story, user, false, false, likeCount, commentCount);
+                            }
+                        } catch (Exception e) {
+                            log.error("Error creating StoryResponse for search result {} [RequestID: {}]: {}", 
+                                    story.getId(), requestId, e.getMessage());
+                            return null;
+                        }
+                    })
+                    .filter(story -> story != null)
+                    .collect(Collectors.toList());
+            
+            log.info("Returning {} search results for page {} [RequestID: {}]", 
+                    paginatedStories.size(), page, requestId);
+            
+            return PagedResponse.of(paginatedStories, page, size, (long) matchingStories.size());
+            
+        } catch (Exception e) {
+            log.error("Error searching stories by title and tags [RequestID: {}]: {}", requestId, e.getMessage(), e);
+            throw new RuntimeException("Failed to search stories: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Search stories by content (title and tags) with priority on title matches
+     * @param searchContent Search term to look for in title and tags
+     * @param currentUserId The current user ID (can be null for unauthenticated users)
+     * @param page Page number
+     * @param size Page size
+     * @return PagedResponse of stories matching the search criteria
+     */
+    public PagedResponse<StoryResponse> searchStoriesByContent(String searchContent, 
+                                                              String currentUserId, int page, int size) {
+        String requestId = RequestContext.getRequestId();
+        log.info("Searching stories by content - searchContent: {}, user: {} [RequestID: {}]", 
+                searchContent, currentUserId, requestId);
+        
+        try {
+            if (searchContent == null || searchContent.trim().isEmpty()) {
+                log.warn("Empty search content provided [RequestID: {}]", requestId);
+                return PagedResponse.of(new ArrayList<>(), page, size, 0L);
+            }
+            
+            String searchTerm = searchContent.toLowerCase().trim();
+            List<Story> allActiveStories = storyRepository.findByStatus(Story.StoryStatus.ACTIVE);
+            
+            // Separate stories into priority groups
+            List<Story> titleMatches = new ArrayList<>();
+            List<Story> tagMatches = new ArrayList<>();
+            List<Story> otherMatches = new ArrayList<>();
+            
+            for (Story story : allActiveStories) {
+                boolean titleMatch = false;
+                boolean tagMatch = false;
+                
+                // Check title match
+                if (story.getTitle() != null && story.getTitle().toLowerCase().contains(searchTerm)) {
+                    titleMatch = true;
+                    titleMatches.add(story);
+                }
+                
+                // Check tag matches (only if not already matched by title)
+                if (!titleMatch && story.getTags() != null) {
+                    for (String tag : story.getTags()) {
+                        if (tag != null && tag.toLowerCase().contains(searchTerm)) {
+                            tagMatch = true;
+                            tagMatches.add(story);
+                            break; // Found a tag match, no need to check other tags
+                        }
+                    }
+                }
+                
+                // If neither title nor tag match, check other fields (optional)
+                if (!titleMatch && !tagMatch) {
+                    // You can add more search fields here if needed
+                    // For example: content, description, etc.
+                }
+            }
+            
+            // Combine results with priority: title matches first, then tag matches
+            List<Story> matchingStories = new ArrayList<>();
+            matchingStories.addAll(titleMatches);
+            matchingStories.addAll(tagMatches);
+            
+            log.info("Search results - Title matches: {}, Tag matches: {}, Total: {} [RequestID: {}]", 
+                    titleMatches.size(), tagMatches.size(), matchingStories.size(), requestId);
+            
+            // Apply pagination
+            int startIndex = page * size;
+            int endIndex = Math.min(startIndex + size, matchingStories.size());
+            
+            List<StoryResponse> paginatedStories = matchingStories.stream()
+                    .skip(startIndex)
+                    .limit(size)
+                    .map(story -> {
+                        try {
+                            User user = userService.getUserEntityById(story.getUserId());
+                            
+                            if (currentUserId != null) {
+                                // For authenticated users
+                                boolean likedByMe = likeService.isLiked(currentUserId, story.getId());
+                                boolean bookmarkedByMe = bookmarkService.isBookmarked(currentUserId, story.getId());
+                                long likeCount = getLikeCount(story.getId());
+                                long commentCount = getCommentCount(story.getId());
+                                return StoryResponse.fromStory(story, user, likedByMe, bookmarkedByMe, likeCount, commentCount);
+                            } else {
+                                // For unauthenticated users
+                                long likeCount = getLikeCount(story.getId());
+                                long commentCount = getCommentCount(story.getId());
+                                return StoryResponse.fromStory(story, user, false, false, likeCount, commentCount);
+                            }
+                        } catch (Exception e) {
+                            log.error("Error creating StoryResponse for search result {} [RequestID: {}]: {}", 
+                                    story.getId(), requestId, e.getMessage());
+                            return null;
+                        }
+                    })
+                    .filter(story -> story != null)
+                    .collect(Collectors.toList());
+            
+            log.info("Returning {} search results for page {} [RequestID: {}]", 
+                    paginatedStories.size(), page, requestId);
+            
+            return PagedResponse.of(paginatedStories, page, size, (long) matchingStories.size());
+            
+        } catch (Exception e) {
+            log.error("Error searching stories by content [RequestID: {}]: {}", requestId, e.getMessage(), e);
+            throw new RuntimeException("Failed to search stories: " + e.getMessage(), e);
+        }
     }
 } 

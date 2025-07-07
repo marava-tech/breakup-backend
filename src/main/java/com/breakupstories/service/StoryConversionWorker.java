@@ -266,8 +266,15 @@ public class StoryConversionWorker {
             dataStore.getStoryAnalysisResponse().getAnalysis().getTags() != null) {
             
             List<String> tags = dataStore.getStoryAnalysisResponse().getAnalysis().getTags();
-            log.info("Extracted {} tags from story analysis for story: {}", tags.size(), dataStore.getId());
-            return tags;
+            // Filter out empty strings as an additional safety measure
+            List<String> filteredTags = tags.stream()
+                    .filter(tag -> tag != null && !tag.trim().isEmpty())
+                    .map(String::trim)
+                    .toList();
+            
+            log.info("Extracted {} tags from story analysis for story: {} (filtered from {} original tags)", 
+                    filteredTags.size(), dataStore.getId(), tags.size());
+            return filteredTags;
         }
         
         log.warn("No tags available from story analysis for story: {}", dataStore.getId());

@@ -117,6 +117,8 @@ public class StoryProcessingWorker {
         try {
             String userLanguage = getUserLanguage(user);
             
+
+            
             // Step 1: Transcription
             try {
                 log.info("Starting transcription for story: {} (Request ID: {})", dataStore.getId(), requestId);
@@ -134,7 +136,18 @@ public class StoryProcessingWorker {
             // Step 2: Story Rewrite
             try {
                 log.info("Starting story rewrite for story: {} (Request ID: {})", dataStore.getId(), requestId);
-                String rewrittenStory = aiService.rewriteStory(dataStore.getTranscriptionResponse().getTranscript(), userLanguage);
+                
+                // Debug: Check transcription response
+                if (dataStore.getTranscriptionResponse() == null) {
+                    throw new RuntimeException("Transcription response is null");
+                }
+                
+                String transcript = dataStore.getTranscriptionResponse().getTranscript();
+                log.info("Transcript for rewrite - Length: {}, Content: {}", 
+                        transcript != null ? transcript.length() : 0, 
+                        transcript != null ? transcript.substring(0, Math.min(100, transcript.length())) : "null");
+                
+                String rewrittenStory = aiService.rewriteStory(transcript, userLanguage);
                 if(ObjectUtils.isEmpty(rewrittenStory)) throw new RuntimeException("unable to rewrite the story");
                 dataStore.setStoryRewriteResponse(com.breakupstories.dto.StoryRewriteResponse.builder()
                         .originalTranscript(dataStore.getTranscriptionResponse().getTranscript())
@@ -196,6 +209,8 @@ public class StoryProcessingWorker {
             throw e;
         }
     }
+    
+
     
     /**
      * Update data store metadata with AI processing results

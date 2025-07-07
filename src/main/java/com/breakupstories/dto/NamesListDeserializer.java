@@ -18,7 +18,11 @@ public class NamesListDeserializer extends JsonDeserializer<List<String>> {
         if (node.isArray()) {
             // Handle array case: ["name1", "name2"]
             for (JsonNode element : node) {
-                result.add(element.asText());
+                String value = element.asText();
+                // Filter out null, empty, or whitespace-only strings
+                if (value != null && !value.trim().isEmpty()) {
+                    result.add(value.trim());
+                }
             }
         } else if (node.isObject()) {
             // Handle object case: {} - return empty list

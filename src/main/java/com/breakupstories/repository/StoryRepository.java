@@ -78,4 +78,7 @@ public interface StoryRepository extends MongoRepository<Story, String> {
     // Find stories by tags (all tags must be present)
     @Query("{'tags': {$all: ?0}}")
     List<Story> findByTagsContainingAll(List<String> tags);
+    
+    // Find stories by story IDs and status
+    List<Story> findByIdInAndStatus(List<String> storyIds, Story.StoryStatus status);
 } 
