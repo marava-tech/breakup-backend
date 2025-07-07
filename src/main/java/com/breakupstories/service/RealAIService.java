@@ -1,16 +1,11 @@
 package com.breakupstories.service;
 
-import com.breakupstories.dto.AbuseDetectionRequest;
+
 import com.breakupstories.dto.AbuseDetectionResponse;
-import com.breakupstories.dto.ParagraphRewriteRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.breakupstories.dto.ParagraphRewriteResponse;
-import com.breakupstories.dto.StoryAnalysisRequest;
 import com.breakupstories.dto.StoryAnalysisResponse;
-import com.breakupstories.dto.StoryRewriteRequest;
-import com.breakupstories.dto.StoryRewriteResponse;
 import com.breakupstories.dto.TranscriptionResponse;
-import com.breakupstories.dto.ConsolingMessageRequest;
 import com.breakupstories.dto.ConsolingMessageResponse;
 import com.breakupstories.exception.AIServiceException;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +34,7 @@ public class RealAIService implements AIService {
     
     private final RestTemplate restTemplate;
     
-    @Value("${ai.service.base-url:http://localhost:8000}")
+    @Value("${ai.service.base-url-local:http://localhost:8000}")
     private String aiServiceBaseUrl;
 
 
@@ -79,35 +74,32 @@ public class RealAIService implements AIService {
         }
         
         try {
-            // Create request body
-            StoryRewriteRequest request = StoryRewriteRequest.builder()
-                    .transcript(transcript)
-                    .language(language)
-                    .build();
+            // URL encode the transcript for query parameter
+            String encodedTranscript = java.net.URLEncoder.encode(transcript, "UTF-8");
+            
+            // Build URL with query parameters
+            String url = String.format("%s/story-rewrite/rewrite?transcript=%s&language=%s", 
+                    aiServiceBaseUrl, encodedTranscript, language);
             
             // Create headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Accept", MediaType.APPLICATION_JSON_VALUE);
             
-            // Create HTTP entity
-            HttpEntity<StoryRewriteRequest> requestEntity = new HttpEntity<>(request, headers);
+            // Create HTTP entity with empty body
+            HttpEntity<String> entity = new HttpEntity<>(headers);
             
-            // Make request to AI service
-            String rewriteUrl = aiServiceBaseUrl + "/story-rewrite/rewrite";
-            log.info("Making POST request to: {} with transcript length: {}", rewriteUrl, transcript.length());
+            log.info("Making GET request to: {} with transcript length: {}", url, transcript.length());
             
-            ResponseEntity<StoryRewriteResponse> response = restTemplate.exchange(
-                    rewriteUrl,
-                    HttpMethod.POST,
-                    requestEntity,
-                    StoryRewriteResponse.class
-            );
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
             
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                StoryRewriteResponse rewriteResponse = response.getBody();
-                log.info("Story rewrite successful - Language: {}", rewriteResponse.getLanguage());
-                return rewriteResponse.getRewrittenStory();
+                log.info("Story rewrite successful");
+                // Parse the JSON response to extract rewritten_story
+                ObjectMapper objectMapper = new ObjectMapper();
+                var jsonNode = objectMapper.readTree(response.getBody());
+                String rewrittenStory = jsonNode.get("rewritten_story").asText();
+                log.info("Extracted rewritten story with length: {}", rewrittenStory.length());
+                return rewrittenStory;
             } else {
                 log.error("Story rewrite failed - Status: {}", response.getStatusCode());
                 throw new AIServiceException("Story Rewrite", "REWRITE_HTTP_ERROR", 
@@ -126,33 +118,29 @@ public class RealAIService implements AIService {
         log.info("Rewriting story into paragraphs - Language: {}, Transcript length: {}", language, transcript.length());
         
         try {
-            // Create request body
-            ParagraphRewriteRequest request = ParagraphRewriteRequest.builder()
-                    .transcript(transcript)
-                    .language(language)
-                    .build();
+            // URL encode the transcript for query parameter
+            String encodedTranscript = java.net.URLEncoder.encode(transcript, "UTF-8");
             
-            // Create request headers
+            // Build URL with query parameters
+            String url = String.format("%s/story-rewrite/paragraphs?transcript=%s&language=%s", 
+                    aiServiceBaseUrl, encodedTranscript, language);
+            
+            // Create headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             
-            // Create HTTP entity
-            HttpEntity<ParagraphRewriteRequest> requestEntity = new HttpEntity<>(request, headers);
+            // Create HTTP entity with empty body
+            HttpEntity<String> entity = new HttpEntity<>(headers);
             
-            // Make request to AI service
-            String rewriteUrl = aiServiceBaseUrl + "/story-rewrite/paragraphs";
-            ResponseEntity<ParagraphRewriteResponse> response = restTemplate.exchange(
-                    rewriteUrl,
-                    HttpMethod.POST,
-                    requestEntity,
-                    ParagraphRewriteResponse.class
-            );
+            log.info("Making GET request to: {} with transcript length: {}", url, transcript.length());
+            
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
             
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                ParagraphRewriteResponse rewriteResponse = response.getBody();
-                log.info("Story paragraph rewrite successful - Language: {}, Contents: {}", 
-                        rewriteResponse.getLanguage(), rewriteResponse.getContents().size());
-                return rewriteResponse;
+                log.info("Story paragraph rewrite successful");
+                // Parse the JSON response into ParagraphRewriteResponse
+                ObjectMapper objectMapper = new ObjectMapper();
+                return objectMapper.readValue(response.getBody(), ParagraphRewriteResponse.class);
             } else {
                 log.error("Story paragraph rewrite failed - Status: {}", response.getStatusCode());
                 throw new AIServiceException("Paragraph Rewrite", "PARAGRAPH_REWRITE_HTTP_ERROR", 
@@ -178,41 +166,29 @@ public class RealAIService implements AIService {
         }
         
         try {
-            // Create request body
-            StoryAnalysisRequest request = StoryAnalysisRequest.builder()
-                    .story(story)
-                    .language(language)
-                    .build();
+            // URL encode the story for query parameter
+            String encodedStory = java.net.URLEncoder.encode(story, "UTF-8");
             
-            // Create request headers
+            // Build URL with query parameters
+            String url = String.format("%s/story/analyze?story=%s&language=%s", 
+                    aiServiceBaseUrl, encodedStory, language);
+            
+            // Create headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             
-            // Create HTTP entity
-            HttpEntity<StoryAnalysisRequest> requestEntity = new HttpEntity<>(request, headers);
+            // Create HTTP entity with empty body
+            HttpEntity<String> entity = new HttpEntity<>(headers);
             
-            // Make request to AI service
-            String analysisUrl = aiServiceBaseUrl + "/story/analyze";
-            ResponseEntity<StoryAnalysisResponse> response = restTemplate.exchange(
-                    analysisUrl,
-                    HttpMethod.POST,
-                    requestEntity,
-                    StoryAnalysisResponse.class
-            );
+            log.info("Making GET request to: {} with story length: {}", url, story.length());
+            
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
             
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                StoryAnalysisResponse analysisResponse = response.getBody();
-                if (analysisResponse.getSuccess()) {
-                    log.info("Story analysis successful - Language: {}, Emotions: {}, Tags: {}", 
-                            analysisResponse.getAnalysis().getStory_type(), 
-                            analysisResponse.getAnalysis().getEmotions_with_scores().size(),
-                            analysisResponse.getAnalysis().getTags().size());
-                    return analysisResponse;
-                } else {
-                    log.error("Story analysis failed - Error: {}", analysisResponse.getError());
-                    throw new AIServiceException("Story Analysis", "ANALYSIS_FAILED", 
-                        "Story analysis failed: " + analysisResponse.getError());
-                }
+                log.info("Story analysis successful");
+                // Parse the JSON response into StoryAnalysisResponse
+                ObjectMapper objectMapper = new ObjectMapper();
+                return objectMapper.readValue(response.getBody(), StoryAnalysisResponse.class);
             } else {
                 log.error("Story analysis failed - Status: {}", response.getStatusCode());
                 throw new AIServiceException("Story Analysis", "ANALYSIS_HTTP_ERROR", 
@@ -231,41 +207,29 @@ public class RealAIService implements AIService {
         log.info("Detecting abuse in comment - Language: {}, Comment length: {}", language, comment.length());
         
         try {
-            // Create request body
-            AbuseDetectionRequest request = AbuseDetectionRequest.builder()
-                    .comment(comment)
-                    .language(language)
-                    .build();
+            // URL encode the comment for query parameter
+            String encodedComment = java.net.URLEncoder.encode(comment, "UTF-8");
             
-            // Create request headers
+            // Build URL with query parameters
+            String url = String.format("%s/abuse-detection/detect?comment=%s&language=%s", 
+                    aiServiceBaseUrl, encodedComment, language);
+            
+            // Create headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             
-            // Create HTTP entity
-            HttpEntity<AbuseDetectionRequest> requestEntity = new HttpEntity<>(request, headers);
+            // Create HTTP entity with empty body
+            HttpEntity<String> entity = new HttpEntity<>(headers);
             
-            // Make request to AI service
-            String abuseDetectionUrl = aiServiceBaseUrl + "/abuse-detection/detect";
-            ResponseEntity<AbuseDetectionResponse> response = restTemplate.exchange(
-                    abuseDetectionUrl,
-                    HttpMethod.POST,
-                    requestEntity,
-                    AbuseDetectionResponse.class
-            );
+            log.info("Making GET request to: {} with comment length: {}", url, comment.length());
+            
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
             
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                AbuseDetectionResponse abuseResponse = response.getBody();
-                if (abuseResponse.getSuccess()) {
-                    log.info("Abuse detection successful - Is Abusive: {}, Confidence: {}, Category: {}", 
-                            abuseResponse.getIs_abusive(), 
-                            abuseResponse.getConfidence(),
-                            abuseResponse.getCategory());
-                    return abuseResponse;
-                } else {
-                    log.error("Abuse detection failed - Error: {}", abuseResponse.getError());
-                    throw new AIServiceException("Abuse Detection", "ABUSE_DETECTION_FAILED", 
-                        "Abuse detection failed: " + abuseResponse.getError());
-                }
+                log.info("Abuse detection successful");
+                // Parse the JSON response into AbuseDetectionResponse
+                ObjectMapper objectMapper = new ObjectMapper();
+                return objectMapper.readValue(response.getBody(), AbuseDetectionResponse.class);
             } else {
                 log.error("Abuse detection failed - Status: {}", response.getStatusCode());
                 throw new AIServiceException("Abuse Detection", "ABUSE_DETECTION_HTTP_ERROR", 
@@ -327,36 +291,29 @@ public class RealAIService implements AIService {
                 language, gender, age, consoleBy);
         
         try {
-            // Create request body
-            ConsolingMessageRequest request = ConsolingMessageRequest.builder()
-                    .story(story)
-                    .language(language)
-                    .gender(gender)
-                    .age(age)
-                    .consoleBy(consoleBy)
-                    .build();
+            // URL encode the story for query parameter
+            String encodedStory = java.net.URLEncoder.encode(story, "UTF-8");
             
-            // Create request headers
+            // Build URL with query parameters
+            String url = String.format("%s/consoling/generate-message?story=%s&language=%s&gender=%s&age=%d&consoleBy=%s", 
+                    aiServiceBaseUrl, encodedStory, language, gender, age, consoleBy);
+            
+            // Create headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             
-            // Create HTTP entity
-            HttpEntity<ConsolingMessageRequest> requestEntity = new HttpEntity<>(request, headers);
+            // Create HTTP entity with empty body
+            HttpEntity<String> entity = new HttpEntity<>(headers);
             
-            // Make request to AI service
-            String consolingUrl = aiServiceBaseUrl + "/consoling/generate-message";
-            ResponseEntity<ConsolingMessageResponse> response = restTemplate.exchange(
-                    consolingUrl,
-                    HttpMethod.POST,
-                    requestEntity,
-                    ConsolingMessageResponse.class
-            );
+            log.info("Making GET request to: {} with story length: {}", url, story.length());
+            
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
             
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                ConsolingMessageResponse consolingResponse = response.getBody();
-                log.info("Consoling message generation successful - Language: {}, ConsoleBy: {}", 
-                        consolingResponse.getLanguage(), consolingResponse.getConsoleBy());
-                return consolingResponse;
+                log.info("Consoling message generation successful");
+                // Parse the JSON response into ConsolingMessageResponse
+                ObjectMapper objectMapper = new ObjectMapper();
+                return objectMapper.readValue(response.getBody(), ConsolingMessageResponse.class);
             } else {
                 log.error("Consoling message generation failed - Status: {}", response.getStatusCode());
                 throw new AIServiceException("Consoling Message", "CONSOLING_HTTP_ERROR", 
