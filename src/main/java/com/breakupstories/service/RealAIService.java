@@ -2,9 +2,8 @@ package com.breakupstories.service;
 
 import com.breakupstories.dto.AbuseDetectionRequest;
 import com.breakupstories.dto.AbuseDetectionResponse;
-import com.breakupstories.dto.LocationInfoRequest;
-import com.breakupstories.dto.LocationInfoResponse;
 import com.breakupstories.dto.ParagraphRewriteRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.breakupstories.dto.ParagraphRewriteResponse;
 import com.breakupstories.dto.StoryAnalysisRequest;
 import com.breakupstories.dto.StoryAnalysisResponse;
@@ -60,27 +59,24 @@ public class RealAIService implements AIService {
         }
     }
 
-    @Override
-    public String extractLocationFromCoordinates(String latitude, String longitude) {
-        log.info("Extracting location from coordinates - Latitude: {}, Longitude: {}", latitude, longitude);
-        
-        try {
-            LocationInfoResponse response = getLocationInfo(Double.parseDouble(latitude), Double.parseDouble(longitude));
-            if (response.getSuccess()) {
-                return String.format("%s, %s, %s", 
-                    response.getDistrict(), response.getState(), response.getPincode());
-            } else {
-                return "Unknown Location";
-            }
-        } catch (Exception e) {
-            log.error("Error extracting location: {}", e.getMessage(), e);
-            return "Unknown Location";
-        }
-    }
+
 
     @Override
     public String rewriteStory(String transcript, String language) {
-        log.info("Rewriting story - Language: {}, Transcript length: {}", language, transcript.length());
+        log.info("Rewriting story - Language: {}, Transcript length: {}", language, transcript != null ? transcript.length() : 0);
+        
+        // Validate input parameters
+        if (transcript == null || transcript.trim().isEmpty()) {
+            log.error("Transcript is null or empty for story rewrite");
+            throw new AIServiceException("Story Rewrite", "INVALID_INPUT", 
+                "Transcript cannot be null or empty for story rewrite");
+        }
+        
+        if (language == null || language.trim().isEmpty()) {
+            log.error("Language is null or empty for story rewrite");
+            throw new AIServiceException("Story Rewrite", "INVALID_INPUT", 
+                "Language cannot be null or empty for story rewrite");
+        }
         
         try {
             // Create request body
@@ -89,15 +85,18 @@ public class RealAIService implements AIService {
                     .language(language)
                     .build();
             
-            // Create request headers
+            // Create headers
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Accept", MediaType.APPLICATION_JSON_VALUE);
             
             // Create HTTP entity
             HttpEntity<StoryRewriteRequest> requestEntity = new HttpEntity<>(request, headers);
             
             // Make request to AI service
             String rewriteUrl = aiServiceBaseUrl + "/story-rewrite/rewrite";
+            log.info("Making POST request to: {} with transcript length: {}", rewriteUrl, transcript.length());
+            
             ResponseEntity<StoryRewriteResponse> response = restTemplate.exchange(
                     rewriteUrl,
                     HttpMethod.POST,
@@ -280,56 +279,7 @@ public class RealAIService implements AIService {
         }
     }
     
-    @Override
-    public LocationInfoResponse getLocationInfo(Double latitude, Double longitude) {
-        log.info("Getting location info - Latitude: {}, Longitude: {}", latitude, longitude);
-        
-        try {
-            // Create request body
-            LocationInfoRequest request = LocationInfoRequest.builder()
-                    .latitude(latitude)
-                    .longitude(longitude)
-                    .build();
-            
-            // Create request headers
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            
-            // Create HTTP entity
-            HttpEntity<LocationInfoRequest> requestEntity = new HttpEntity<>(request, headers);
-            
-            // Make request to AI service
-            String locationInfoUrl = aiServiceBaseUrl + "/location/get-location-info";
-            ResponseEntity<LocationInfoResponse> response = restTemplate.exchange(
-                    locationInfoUrl,
-                    HttpMethod.POST,
-                    requestEntity,
-                    LocationInfoResponse.class
-            );
-            
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                LocationInfoResponse locationResponse = response.getBody();
-                if (locationResponse.getSuccess()) {
-                    log.info("Location info successful - District: {}, State: {}, Pincode: {}", 
-                            locationResponse.getDistrict(), locationResponse.getState(), locationResponse.getPincode());
-                    return locationResponse;
-                } else {
-                    log.error("Location info failed - Error: {}", locationResponse.getError());
-                    throw new AIServiceException("Location Info", "LOCATION_INFO_FAILED", 
-                        "Location info failed: " + locationResponse.getError());
-                }
-            } else {
-                log.error("Location info failed - Status: {}", response.getStatusCode());
-                throw new AIServiceException("Location Info", "LOCATION_INFO_HTTP_ERROR", 
-                    "Location info failed with status: " + response.getStatusCode());
-            }
-            
-        } catch (Exception e) {
-            log.error("Error getting location info: {}", e.getMessage(), e);
-            throw new AIServiceException("Location Info", "LOCATION_INFO_ERROR", 
-                "Failed to get location info: " + e.getMessage(), e);
-        }
-    }
+
     
     @Override
     public TranscriptionResponse transcribeAudio(String audioUrl, String language) {
@@ -344,7 +294,7 @@ public class RealAIService implements AIService {
             HttpEntity<String> requestEntity = new HttpEntity<>(headers);
             
             // Make request to AI service with query parameters
-            String transcriptionUrl = String.format("%s/transcribe?audio_url=%s&language=%s", 
+            String transcriptionUrl = String.format("%s/transcription/transcribe-url?audio_url=%s&language=%s", 
                     aiServiceBaseUrl, audioUrl, language);
             ResponseEntity<TranscriptionResponse> response = restTemplate.exchange(
                     transcriptionUrl,

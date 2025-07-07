@@ -19,6 +19,7 @@ import com.breakupstories.service.StoryDataStoreService;
 import com.breakupstories.util.RequestContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
@@ -30,6 +31,9 @@ import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 import com.breakupstories.model.StoryDataStore;
 
@@ -116,6 +120,7 @@ public class StoryController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String storyId,
             @RequestParam(required = false) String language,
+            HttpServletRequest request,
             Authentication authentication) {
         
         PagedResponse<StoryResponse> response;
@@ -129,7 +134,7 @@ public class StoryController {
                     response = storyService.getForYouStories(userId, page, size);
                 }
                 case NEAR_ME -> {
-                    response = storyService.getNearbyStories(userId, page, size);
+                    response = storyService.getNearbyStories(userId, request,page, size);
                 }
                 case TRENDING -> {
                     response = storyService.getTrendingStories(userId, page, size);
@@ -323,26 +328,32 @@ public class StoryController {
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Search stories by title", description = "Search stories by title contains (case-insensitive)")
-    public ResponseEntity<PagedResponse<StoryResponse>> searchStoriesByTitle(
-            @RequestParam String title,
+    @Operation(summary = "Search stories by content", description = "Search stories by title and tags using unified search content (case-insensitive)")
+    public ResponseEntity<PagedResponse<StoryResponse>> searchStoriesByContent(
+            @RequestParam String searchContent,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             Authentication authentication) {
         
         try {
+            String requestId = RequestContext.getRequestId();
+            log.info("Search request - searchContent: {}, page: {}, size: {} [RequestID: {}]", 
+                    searchContent, page, size, requestId);
+            
             PagedResponse<StoryResponse> response;
             if (authentication != null && authentication.isAuthenticated()) {
                 String email = authentication.getName();
                 String userId = userService.getUserEntityByEmail(email).getId();
-                response = storyService.searchStoriesByTitle(title, userId, page, size);
+                response = storyService.searchStoriesByContent(searchContent, userId, page, size);
             } else {
-                response = storyService.searchStoriesByTitle(title, page, size);
+                response = storyService.searchStoriesByContent(searchContent, null, page, size);
             }
             
+            log.info("Search completed successfully. Found {} results [RequestID: {}]", 
+                    response.getContent().size(), requestId);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.warn("Error searching stories by title: {}", e.getMessage());
+            log.error("Error searching stories: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().build();
         }
     }

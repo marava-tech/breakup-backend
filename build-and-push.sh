@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Build and Push Script for Breakup Stories API
-# Creates separate tags for Mac (latest) and Linux (linux-amd64)
+# Creates Linux (linux-amd64)
 # Usage: ./build-and-push.sh [version]
 
 set -e  # Exit on any error
@@ -9,14 +9,13 @@ set -e  # Exit on any error
 # Configuration
 DOCKER_USERNAME="madhukinnera"
 IMAGE_NAME="breakup-stories-api"
-DEFAULT_VERSION="latest"
 
 # Get version from command line or use default
 VERSION=${1:-$DEFAULT_VERSION}
 
 echo "🐳 Building and pushing Docker images for different platforms..."
 echo "📦 Image: $DOCKER_USERNAME/$IMAGE_NAME"
-echo "🏷️  Tags: latest (Mac/ARM64), linux-amd64 (Linux/AMD64)"
+echo "🏷️  Tags: linux-amd64 (Linux/AMD64)"
 
 # Check Docker Hub authentication
 echo "🔐 Checking Docker Hub authentication..."
@@ -110,18 +109,6 @@ fi
 
 echo "✅ Repository check passed. Proceeding with build..."
 
-# Build and push Mac version (ARM64) as latest
-echo "🍎 Building Mac version (ARM64) as 'latest'..."
-if docker buildx build \
-    --platform linux/arm64 \
-    --tag $DOCKER_USERNAME/$IMAGE_NAME:latest \
-    --push \
-    .; then
-    echo "✅ Successfully built and pushed Mac version (latest)"
-else
-    echo "❌ Failed to build and push Mac version"
-    exit 1
-fi
 
 # Build and push Linux version (AMD64) as linux-amd64
 echo "🐧 Building Linux version (AMD64) as 'linux-amd64'..."
@@ -141,21 +128,15 @@ echo "🎉 Images are now available on Docker Hub!"
 
 # Show image info for both tags
 echo ""
-echo "📋 Image Information:"
-echo "🍎 Mac version (latest):"
-docker buildx imagetools inspect $DOCKER_USERNAME/$IMAGE_NAME:latest 2>/dev/null || echo "   Image info not available yet"
-echo ""
 echo "🐧 Linux version (linux-amd64):"
 docker buildx imagetools inspect $DOCKER_USERNAME/$IMAGE_NAME:linux-amd64 2>/dev/null || echo "   Image info not available yet"
 
 echo ""
 echo "🚀 To run the application:"
-echo "   Mac:     docker run -p 8080:8080 $DOCKER_USERNAME/$IMAGE_NAME:latest"
 echo "   Linux:   docker run -p 8080:8080 $DOCKER_USERNAME/$IMAGE_NAME:linux-amd64"
 echo ""
 echo "📖 Or use docker-compose:"
 echo "   docker-compose up -d"
 echo ""
 echo "🌐 Platform-specific tags:"
-echo "   - latest:     Mac (Apple Silicon/ARM64)"
 echo "   - linux-amd64: Linux (Intel/AMD 64-bit)" 

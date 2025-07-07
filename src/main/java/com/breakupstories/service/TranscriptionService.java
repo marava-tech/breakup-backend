@@ -10,8 +10,6 @@ import com.breakupstories.dto.StoryAnalysisRequest;
 import com.breakupstories.dto.StoryAnalysisResponse;
 import com.breakupstories.dto.AbuseDetectionRequest;
 import com.breakupstories.dto.AbuseDetectionResponse;
-import com.breakupstories.dto.LocationInfoRequest;
-import com.breakupstories.dto.LocationInfoResponse;
 import com.breakupstories.exception.AIServiceException;
 import com.breakupstories.model.Story;
 import com.breakupstories.model.User;
@@ -359,61 +357,5 @@ public class TranscriptionService {
         }
     }
     
-    /**
-     * Get location information from coordinates
-     * @param latitude The latitude coordinate
-     * @param longitude The longitude coordinate
-     * @return Location info response with address details
-     */
-    public LocationInfoResponse getLocationInfo(Double latitude, Double longitude) {
-        log.info("Getting location info - Latitude: {}, Longitude: {}", latitude, longitude);
-        
-        try {
-            // Create request body
-            LocationInfoRequest request = LocationInfoRequest.builder()
-                    .latitude(latitude)
-                    .longitude(longitude)
-                    .build();
-            
-            // Create request headers
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            
-            // Create HTTP entity
-            HttpEntity<LocationInfoRequest> requestEntity = new HttpEntity<>(request, headers);
-            
-            // Make request to AI service
-            String locationInfoUrl = aiServiceBaseUrl + "/location/get-location-info";
-            ResponseEntity<LocationInfoResponse> response = restTemplate.exchange(
-                    locationInfoUrl,
-                    HttpMethod.POST,
-                    requestEntity,
-                    LocationInfoResponse.class
-            );
-            
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                LocationInfoResponse locationResponse = response.getBody();
-                if (locationResponse.getSuccess()) {
-                    log.info("Location info successful - District: {}, State: {}, Pincode: {}", 
-                            locationResponse.getDistrict(), 
-                            locationResponse.getState(),
-                            locationResponse.getPincode());
-                    return locationResponse;
-                } else {
-                    log.error("Location info failed - Error: {}", locationResponse.getError());
-                    throw new AIServiceException("Location Info", "LOCATION_INFO_FAILED", 
-                        "Location info failed: " + locationResponse.getError());
-                }
-            } else {
-                log.error("Location info failed - Status: {}", response.getStatusCode());
-                throw new AIServiceException("Location Info", "LOCATION_INFO_HTTP_ERROR", 
-                    "Location info failed with status: " + response.getStatusCode());
-            }
-            
-        } catch (Exception e) {
-            log.error("Error getting location info: {}", e.getMessage(), e);
-            throw new AIServiceException("Location Info", "LOCATION_INFO_ERROR", 
-                "Failed to get location info: " + e.getMessage(), e);
-        }
-    }
+
 } 

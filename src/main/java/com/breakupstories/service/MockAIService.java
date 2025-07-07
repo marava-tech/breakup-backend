@@ -5,7 +5,6 @@ import com.breakupstories.dto.ParagraphContent;
 import com.breakupstories.dto.StoryAnalysisResponse;
 import com.breakupstories.dto.StoryAnalysis;
 import com.breakupstories.dto.AbuseDetectionResponse;
-import com.breakupstories.dto.LocationInfoResponse;
 import com.breakupstories.dto.TranscriptionResponse;
 import com.breakupstories.dto.ConsolingMessageResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -47,28 +46,7 @@ public class MockAIService implements AIService {
         return mockImages;
     }
 
-    @Override
-    public String extractLocationFromCoordinates(String latitude, String longitude) {
-        log.info("Mock AI Service: Extracting location from coordinates - Latitude: {}, Longitude: {}", latitude, longitude);
-        
-        // Mock location extraction based on coordinate ranges
-        double lat = Double.parseDouble(latitude);
-        double lng = Double.parseDouble(longitude);
-        
-        String mockLocation;
-        if (lat >= 8.0 && lat <= 37.0 && lng >= 68.0 && lng <= 97.0) {
-            // India coordinates
-            mockLocation = "Mumbai, Maharashtra, 400001";
-        } else if (lat >= 35.0 && lat <= 45.0 && lng >= -125.0 && lng <= -65.0) {
-            // US coordinates
-            mockLocation = "New York, New York, 10001";
-        } else {
-            mockLocation = "Unknown District, Unknown State, 000000";
-        }
-        
-        log.info("Mock location extraction completed - Location: {}", mockLocation);
-        return mockLocation;
-    }
+
 
     @Override
     public String rewriteStory(String transcript, String language) {
@@ -204,48 +182,7 @@ public class MockAIService implements AIService {
         return mockResponse;
     }
     
-    @Override
-    public LocationInfoResponse getLocationInfo(Double latitude, Double longitude) {
-        log.info("Mock AI Service: Getting location info - Latitude: {}, Longitude: {}", latitude, longitude);
-        
-        // Mock location info based on coordinate ranges
-        String mockPincode = "000000";
-        String mockDistrict = "Unknown District";
-        String mockState = "Unknown State";
-        String mockCountry = "India";
-        String mockFullAddress = "Unknown Location, Unknown District, Unknown State, India";
-        
-        // Simple mock logic based on coordinate ranges
-        if (latitude >= 8.0 && latitude <= 37.0 && longitude >= 68.0 && longitude <= 97.0) {
-            // India coordinates
-            mockPincode = "400001";
-            mockDistrict = "Mumbai";
-            mockState = "Maharashtra";
-            mockCountry = "India";
-            mockFullAddress = "Mumbai, Maharashtra, India";
-        } else if (latitude >= 35.0 && latitude <= 45.0 && longitude >= -125.0 && longitude <= -65.0) {
-            // US coordinates
-            mockPincode = "10001";
-            mockDistrict = "New York";
-            mockState = "New York";
-            mockCountry = "United States";
-            mockFullAddress = "New York, New York, United States";
-        }
-        
-        LocationInfoResponse mockResponse = LocationInfoResponse.builder()
-                .success(true)
-                .pincode(mockPincode)
-                .district(mockDistrict)
-                .state(mockState)
-                .country(mockCountry)
-                .full_address(mockFullAddress)
-                .error(null)
-                .build();
-        
-        log.info("Mock location info completed - District: {}, State: {}, Pincode: {}", 
-                mockDistrict, mockState, mockPincode);
-        return mockResponse;
-    }
+
     
     @Override
     public TranscriptionResponse transcribeAudio(String audioUrl, String language) {

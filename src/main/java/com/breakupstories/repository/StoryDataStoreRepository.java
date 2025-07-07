@@ -159,4 +159,17 @@ public interface StoryDataStoreRepository extends MongoRepository<StoryDataStore
      */
     @Query(value = "{'processingStatus': ?0}", sort = "{'createdAt': 1}")
     List<StoryDataStore> findByProcessingStatusOrderByCreatedAtAscLimit(StoryDataStore.ProcessingStatus processingStatus, int limit);
+    
+    /**
+     * Find stories with location coordinates in upload metadata
+     * This query finds StoryDataStore entries where uploadMetadata contains both "lat" and "long" keys
+     */
+    @Query("{'uploadMetadata.lat': {$exists: true, $ne: null, $ne: ''}, 'uploadMetadata.long': {$exists: true, $ne: null, $ne: ''}}")
+    List<StoryDataStore> findStoriesWithLocationCoordinates();
+    
+    /**
+     * Find stories with location coordinates in upload metadata and specific processing status
+     */
+    @Query("{'uploadMetadata.lat': {$exists: true, $ne: null, $ne: ''}, 'uploadMetadata.long': {$exists: true, $ne: null, $ne: ''}, 'processingStatus': ?0}")
+    List<StoryDataStore> findStoriesWithLocationCoordinatesAndStatus(StoryDataStore.ProcessingStatus processingStatus);
 } 
