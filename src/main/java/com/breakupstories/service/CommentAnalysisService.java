@@ -31,7 +31,7 @@ public class CommentAnalysisService {
      * Scheduled task to analyze comments every 10 minutes
      * Fetches comments from the last 10 minutes and analyzes them
      */
-    @Scheduled(fixedRate = 600000) // 10 minutes = 600,000 milliseconds
+    @Scheduled(fixedRate = 650000) // 10 minutes = 600,000 milliseconds
     public void analyzeRecentComments() {
         log.info("Starting scheduled comment analysis...");
         
@@ -40,7 +40,7 @@ public class CommentAnalysisService {
             LocalDateTime tenMinutesAgo = TimestampUtil.currentLocalDateTime().minusMinutes(10);
             
             // Fetch comments from the last 10 minutes
-            List<Comment> recentComments = commentRepository.findByCreatedAtAfter(tenMinutesAgo);
+            List<Comment> recentComments = commentRepository.findByCreatedAtAfterAndCategoryIsNullAndExplanationIsNullAndConfidenceIsNull(tenMinutesAgo);
             
             log.info("Found {} comments to analyze from the last 10 minutes", recentComments.size());
             

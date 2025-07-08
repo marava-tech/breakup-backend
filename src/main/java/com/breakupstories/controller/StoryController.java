@@ -4,7 +4,6 @@ import com.breakupstories.dto.LikeResponse;
 import com.breakupstories.dto.PagedResponse;
 import com.breakupstories.dto.RequestIdResponse;
 import com.breakupstories.dto.StoryResponse;
-import com.breakupstories.dto.ConsolingMessageRequest;
 import com.breakupstories.dto.ConsolingMessageResponse;
 import com.breakupstories.enums.StorySearchType;
 import com.breakupstories.model.Story;
@@ -31,9 +30,7 @@ import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.List;
-import java.util.Arrays;
-import java.util.stream.Collectors;
+
 
 import com.breakupstories.model.StoryDataStore;
 

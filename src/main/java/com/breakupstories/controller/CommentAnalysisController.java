@@ -40,7 +40,6 @@ public class CommentAnalysisController {
     }
     
     @PostMapping("/trigger-analysis")
-    @PreAuthorize("hasAuthority('ADMIN')")
     @Operation(summary = "Trigger manual comment analysis", description = "Manually trigger the comment analysis for recent comments")
     public ResponseEntity<Map<String, Object>> triggerAnalysis() {
         log.info("Manual comment analysis trigger requested");
