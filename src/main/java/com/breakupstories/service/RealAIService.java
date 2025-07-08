@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -292,7 +293,7 @@ public class RealAIService implements AIService {
         
         try {
             // URL encode the story for query parameter
-            String encodedStory = java.net.URLEncoder.encode(story, "UTF-8");
+            String encodedStory = java.net.URLEncoder.encode(story, StandardCharsets.UTF_8);
             
             // Build URL with query parameters
             String url = String.format("%s/consoling/generate-message?story=%s&language=%s&gender=%s&age=%d&console_by=%s",
