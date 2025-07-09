@@ -174,6 +174,7 @@ public class StoryConversionWorker {
                     .language(dataStore.getLanguage())
                     .audioUrl(dataStore.getAudioUrl())
                     .thumbnailUrl(defaultConfigService.getDefaultThumbnailUrl())
+                    .storyImages(defaultConfigService.getDefaultStoryImages())
                     .duration(dataStore.getDuration())
                     .rejectionReasons(rejectionReasons.length() > 0 ? List.of(rejectionReasons.toString()) : null)
                     .status(Story.StoryStatus.ACTIVE) // All converted stories are active
@@ -419,6 +420,7 @@ public class StoryConversionWorker {
                     .language(dataStore.getLanguage())
                     .audioUrl(dataStore.getAudioUrl())
                     .thumbnailUrl(defaultConfigService.getDefaultThumbnailUrl())
+                    .storyImages(defaultConfigService.getDefaultStoryImages())
                     .duration(dataStore.getDuration())
                     .rejectionReasons(List.of(rejectionReasons.toString()))
                     .status(Story.StoryStatus.REJECTED) // Failed stories are rejected
@@ -488,6 +490,7 @@ public class StoryConversionWorker {
                     .language(dataStore.getLanguage())
                     .audioUrl(dataStore.getAudioUrl())
                     .thumbnailUrl(defaultConfigService.getDefaultThumbnailUrl())
+                    .storyImages(defaultConfigService.getDefaultStoryImages())
                     .duration(dataStore.getDuration())
                     .rejectionReasons(List.of(rejectionReasons.toString()))
                     .status(Story.StoryStatus.REJECTED) // Invalid stories are rejected

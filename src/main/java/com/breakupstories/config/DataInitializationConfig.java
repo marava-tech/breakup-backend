@@ -32,8 +32,13 @@ public class DataInitializationConfig implements CommandLineRunner {
         try {
             PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
             Resource[] resources = resolver.getResources("classpath:startup/*.json");
+            log.info("Found {} JSON files in startup directory", resources.length);
+            
             for (Resource resource : resources) {
+                log.info("Processing startup file: {}", resource.getFilename());
                 List<DefaultConfig> configs = parseJsonResource(resource);
+                log.info("Parsed {} configs from {}", configs.size(), resource.getFilename());
+                
                 for (DefaultConfig config : configs) {
                     if (!defaultConfigRepository.existsByKey(config.getKey())) {
                         defaultConfigRepository.save(config);
@@ -43,6 +48,7 @@ public class DataInitializationConfig implements CommandLineRunner {
                     }
                 }
             }
+            log.info("Default config initialization completed successfully");
         } catch (Exception e) {
             log.error("Error initializing default configs from resources", e);
         }

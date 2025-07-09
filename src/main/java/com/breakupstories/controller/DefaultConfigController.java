@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 @RestController
 @RequestMapping("/api/configs")
@@ -135,6 +137,60 @@ public class DefaultConfigController {
             // Log the error for debugging
             log.error("Error in uploadFileAndSaveConfig: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/test-default-story-images")
+    public ResponseEntity<Map<String, Object>> testDefaultStoryImages() {
+        try {
+            List<String> storyImages = defaultConfigService.getDefaultStoryImages();
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("count", storyImages.size());
+            response.put("images", storyImages);
+            response.put("message", "Default story images retrieved successfully");
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            response.put("message", "Failed to retrieve default story images");
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    @GetMapping("/verify-startup-data")
+    public ResponseEntity<Map<String, Object>> verifyStartupData() {
+        try {
+            Map<String, Object> response = new HashMap<>();
+            
+            // Check default story images
+            List<String> storyImages = defaultConfigService.getDefaultStoryImages();
+            response.put("defaultStoryImages", storyImages);
+            response.put("storyImageCount", storyImages.size());
+            
+            // Check default thumbnail
+            String defaultThumbnail = defaultConfigService.getDefaultThumbnailUrl();
+            response.put("defaultThumbnail", defaultThumbnail);
+            
+            // Check languages
+            List<String> languages = defaultConfigService.getLanguages();
+            response.put("languages", languages);
+            response.put("languageCount", languages.size());
+            
+            response.put("success", true);
+            response.put("message", "Startup data verification completed");
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            response.put("message", "Failed to verify startup data");
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 } 

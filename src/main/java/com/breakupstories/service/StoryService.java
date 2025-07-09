@@ -97,6 +97,7 @@ public class StoryService {
                     .title("Analyzing....") // Will be updated after audio upload and AI processing
                     .audioUrl(null) // Will be set after async upload
                     .thumbnailUrl(defaultConfigService.getDefaultThumbnailUrl())
+                    .storyImages(defaultConfigService.getDefaultStoryImages())
                     .viewCount(0L)
                     .status(Story.StoryStatus.UPLOAD_PENDING) // Initial status
                     .contents(new ArrayList<>()) // Will be populated after AI processing

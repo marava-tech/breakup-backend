@@ -26,6 +26,7 @@ public class Story {
     private String title;
     private String audioUrl;
     private String thumbnailUrl;
+    private List<String> storyImages;
     @Builder.Default
     private Long viewCount=0L;
     private Long duration; // Duration in milliseconds

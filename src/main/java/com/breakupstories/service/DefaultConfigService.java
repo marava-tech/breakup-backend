@@ -240,6 +240,36 @@ public class DefaultConfigService {
             return "";
         }
     }
+
+    /**
+     * Get default story images from configuration
+     * @return List of default story image URLs
+     */
+    public List<String> getDefaultStoryImages() {
+        try {
+            List<DefaultConfig> storyImageConfigs = defaultConfigRepository.findAll().stream()
+                    .filter(config -> config.getKey().startsWith("default_story_image_") && config.isActive())
+                    .collect(Collectors.toList());
+            
+            if (storyImageConfigs.isEmpty()) {
+                log.warn("No default story images found in configuration");
+                return List.of();
+            }
+            
+            // Extract URLs from configurations
+            List<String> storyImages = storyImageConfigs.stream()
+                    .map(DefaultConfig::getValue)
+                    .filter(url -> url != null && !url.trim().isEmpty())
+                    .collect(Collectors.toList());
+            
+            log.info("Found {} default story images", storyImages.size());
+            return storyImages;
+            
+        } catch (Exception e) {
+            log.error("Failed to get default story images", e);
+            return List.of();
+        }
+    }
     
     /**
      * Get first story reward coins from configuration
@@ -272,6 +302,21 @@ public class DefaultConfigService {
             // Return default value if configuration is not found
             log.warn("First story min duration not found in configuration, using default value", e);
             return 5;
+        }
+    }
+
+    /**
+     * Test method to verify default story images are loaded correctly
+     * This method can be called to check if the default story images are available
+     */
+    public void testDefaultStoryImages() {
+        List<String> storyImages = getDefaultStoryImages();
+        log.info("Default story images test - Found {} images: {}", storyImages.size(), storyImages);
+        
+        if (storyImages.isEmpty()) {
+            log.warn("No default story images found - please check defaultThumbnails.json configuration");
+        } else {
+            log.info("Default story images are properly configured");
         }
     }
 } 

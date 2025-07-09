@@ -7,6 +7,7 @@ import com.breakupstories.repository.StoryDataStoreRepository;
 import com.breakupstories.repository.StoryRepository;
 import com.breakupstories.repository.UserRepository;
 import com.breakupstories.util.RequestIdGenerator;
+import com.breakupstories.exception.AIServiceException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
@@ -33,7 +34,7 @@ public class StoryProcessingWorker {
     private final StoryDataStoreRepository storyDataStoreRepository;
     private final StoryRepository storyRepository;
     private final UserRepository userRepository;
-    private final AIService aiService;
+    private final RetryableAIService retryableAIService;
     private final StoryStatusService storyStatusService;
     
     /**
@@ -123,10 +124,22 @@ public class StoryProcessingWorker {
             // Step 1: Transcription
             try {
                 log.info("Starting transcription for story: {} (Request ID: {})", dataStore.getId(), requestId);
-                dataStore.setTranscriptionResponse(aiService.transcribeAudio(dataStore.getAudioUrl(), userLanguage));
+                dataStore.setTranscriptionResponse(retryableAIService.transcribeAudio(dataStore.getAudioUrl(), userLanguage));
                 dataStore.setTranscriptionCompletedAt(TimestampUtil.currentLocalDateTime());
                 storyDataStoreRepository.save(dataStore);
                 log.info("Transcription completed for story: {} (Request ID: {})", dataStore.getId(), requestId);
+            } catch (AIServiceException e) {
+                if ("RATE_LIMIT_EXCEEDED".equals(e.getErrorCode())) {
+                    log.warn("AI service is busy (429 error) for story {} (Request ID: {}). Skipping this story.", 
+                            dataStore.getId(), requestId);
+                    // Don't update story status, just skip to next story
+                    return; // Skip this story and continue with next one
+                } else {
+                    log.error("Transcription failed for story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage());
+                    dataStore.setTranscriptionError("Transcription failed: " + e.getMessage());
+                    storyDataStoreRepository.save(dataStore);
+                    throw e; // Stop processing if transcription fails
+                }
             } catch (Exception e) {
                 log.error("Transcription failed for story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage());
                 dataStore.setTranscriptionError("Transcription failed: " + e.getMessage());
@@ -148,7 +161,7 @@ public class StoryProcessingWorker {
                         transcript != null ? transcript.length() : 0, 
                         transcript != null ? transcript.substring(0, Math.min(100, transcript.length())) : "null");
                 
-                String rewrittenStory = aiService.rewriteStory(transcript, userLanguage);
+                String rewrittenStory = retryableAIService.rewriteStory(transcript, userLanguage);
                 if(ObjectUtils.isEmpty(rewrittenStory)) throw new RuntimeException("unable to rewrite the story");
                 dataStore.setStoryRewriteResponse(com.breakupstories.dto.StoryRewriteResponse.builder()
                         .originalTranscript(dataStore.getTranscriptionResponse().getTranscript())
@@ -158,6 +171,18 @@ public class StoryProcessingWorker {
                 dataStore.setRewriteCompletedAt(TimestampUtil.currentLocalDateTime());
                 storyDataStoreRepository.save(dataStore);
                 log.info("Story rewrite completed for story: {} (Request ID: {})", dataStore.getId(), requestId);
+            } catch (AIServiceException e) {
+                if ("RATE_LIMIT_EXCEEDED".equals(e.getErrorCode())) {
+                    log.warn("AI service is busy (429 error) for story {} (Request ID: {}). Skipping this story.", 
+                            dataStore.getId(), requestId);
+                    // Don't update story status, just skip to next story
+                    return; // Skip this story and continue with next one
+                } else {
+                    log.error("Story rewrite failed for story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage());
+                    dataStore.setRewriteError("Story rewrite failed: " + e.getMessage());
+                    storyDataStoreRepository.save(dataStore);
+                    throw e; // Stop processing if rewrite fails
+                }
             } catch (Exception e) {
                 log.error("Story rewrite failed for story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage());
                 dataStore.setRewriteError("Story rewrite failed: " + e.getMessage());
@@ -168,10 +193,22 @@ public class StoryProcessingWorker {
             // Step 3: Paragraph Rewrite
             try {
                 log.info("Starting paragraph rewrite for story: {} (Request ID: {})", dataStore.getId(), requestId);
-                dataStore.setParagraphRewriteResponse(aiService.rewriteStoryIntoParagraphs(dataStore.getTranscriptionResponse().getTranscript(), userLanguage));
+                dataStore.setParagraphRewriteResponse(retryableAIService.rewriteStoryIntoParagraphs(dataStore.getTranscriptionResponse().getTranscript(), userLanguage));
                 dataStore.setParagraphCompletedAt(TimestampUtil.currentLocalDateTime());
                 storyDataStoreRepository.save(dataStore);
                 log.info("Paragraph rewrite completed for story: {} (Request ID: {})", dataStore.getId(), requestId);
+            } catch (AIServiceException e) {
+                if ("RATE_LIMIT_EXCEEDED".equals(e.getErrorCode())) {
+                    log.warn("AI service is busy (429 error) for story {} (Request ID: {}). Skipping this story.", 
+                            dataStore.getId(), requestId);
+                    // Don't update story status, just skip to next story
+                    return; // Skip this story and continue with next one
+                } else {
+                    log.error("Paragraph rewrite failed for story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage());
+                    dataStore.setParagraphError("Paragraph rewrite failed: " + e.getMessage());
+                    storyDataStoreRepository.save(dataStore);
+                    throw e; // Stop processing if paragraph rewrite fails
+                }
             } catch (Exception e) {
                 log.error("Paragraph rewrite failed for story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage());
                 dataStore.setParagraphError("Paragraph rewrite failed: " + e.getMessage());
@@ -191,10 +228,22 @@ public class StoryProcessingWorker {
                 }
                 
                 String rewrittenStory = dataStore.getStoryRewriteResponse().getRewrittenStory();
-                dataStore.setStoryAnalysisResponse(aiService.analyzeStory(rewrittenStory, userLanguage));
+                dataStore.setStoryAnalysisResponse(retryableAIService.analyzeStory(rewrittenStory, userLanguage));
                 dataStore.setAnalysisCompletedAt(TimestampUtil.currentLocalDateTime());
                 storyDataStoreRepository.save(dataStore);
                 log.info("Story analysis completed for story: {} (Request ID: {})", dataStore.getId(), requestId);
+            } catch (AIServiceException e) {
+                if ("RATE_LIMIT_EXCEEDED".equals(e.getErrorCode())) {
+                    log.warn("AI service is busy (429 error) for story {} (Request ID: {}). Skipping this story.", 
+                            dataStore.getId(), requestId);
+                    // Don't update story status, just skip to next story
+                    return; // Skip this story and continue with next one
+                } else {
+                    log.error("Story analysis failed for story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage());
+                    dataStore.setAnalysisError("Story analysis failed: " + e.getMessage());
+                    storyDataStoreRepository.save(dataStore);
+                    throw e; // Stop processing if analysis fails
+                }
             } catch (Exception e) {
                 log.error("Story analysis failed for story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage());
                 dataStore.setAnalysisError("Story analysis failed: " + e.getMessage());

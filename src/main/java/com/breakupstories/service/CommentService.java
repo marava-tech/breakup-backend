@@ -27,7 +27,7 @@ public class CommentService {
     private final CommentRepository commentRepository;
     @Lazy
     private final UserService userService;
-    private final AIService aiService;
+    private final RetryableAIService retryableAIService;
     
     public CommentResponse createComment(String userId, CommentRequest request) {
         log.info("User {} creating comment on story {}", userId, request.getStoryId());
@@ -187,7 +187,7 @@ public class CommentService {
         
         try {
             log.info("Performing abuse detection on updated comment text");
-            var abuseDetectionResponse = aiService.detectAbuse(request.getText(), "en");
+            var abuseDetectionResponse = retryableAIService.detectAbuse(request.getText(), "en");
             isAbusive = abuseDetectionResponse.getIs_abusive();
             category = abuseDetectionResponse.getCategory();
             explanation = abuseDetectionResponse.getExplanation();
