@@ -1,0 +1,32 @@
+[
+    {
+        "key": "default_thumbnail_url",
+        "value": "http://res.cloudinary.com/dohsebpd1/image/upload/v1751208524/breakup/default_thumnail.png",
+        "description": "Default profile image URL for female users",
+        "active": true
+      },
+      {
+        "key": "default_story_image_1",
+        "value": "https://res.cloudinary.com/dohsebpd1/image/upload/v1751715042/breakup/story_mode_image_1_sq1ebx.png",
+        "description": "Default profile image URL for female users",
+        "active": true
+      },
+      {
+        "key": "default_story_image_2",
+        "value": "https://res.cloudinary.com/dohsebpd1/image/upload/v1751715044/breakup/story_mode_image_2_qet8v5.png",
+        "description": "Default profile image URL for female users",
+        "active": true
+      },
+      {
+        "key": "default_story_image_3",
+        "value": "https://res.cloudinary.com/dohsebpd1/image/upload/v1751715020/breakup/story_mode_image_3_fdl9wc.png",
+        "description": "Default profile image URL for female users",
+        "active": true
+      },
+      {
+        "key": "default_story_image_4",
+        "value": "https://res.cloudinary.com/dohsebpd1/image/upload/v1751715024/breakup/story_mode_image_4_fqqh9l.png",
+        "description": "Default profile image URL for female users",
+        "active": true
+      }
+]

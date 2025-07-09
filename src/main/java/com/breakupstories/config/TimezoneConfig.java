@@ -24,7 +24,6 @@ public class TimezoneConfig {
         return args -> {
             // Set the default timezone to Indian Standard Time
             TimeZone.setDefault(TimeZone.getTimeZone("Asia/Kolkata"));
-            ZoneId.systemDefault();
             
             log.info("Timezone configured to Indian Standard Time (IST) - Asia/Kolkata");
             log.info("Current system timezone: {}", TimeZone.getDefault().getID());

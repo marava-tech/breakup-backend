@@ -419,4 +419,26 @@ public class StoryController {
             return ResponseEntity.status(500).body(errorResponse);
         }
     }
+
+    @GetMapping("/test-story-images/{storyId}")
+    public ResponseEntity<Map<String, Object>> testStoryImages(@PathVariable String storyId) {
+        try {
+            StoryResponse storyResponse = storyService.getStoryById(storyId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("storyId", storyId);
+            response.put("storyImages", storyResponse.getStoryImages());
+            response.put("imageCount", storyResponse.getStoryImages() != null ? storyResponse.getStoryImages().size() : 0);
+            response.put("message", "Story images retrieved successfully");
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("error", e.getMessage());
+            response.put("message", "Failed to retrieve story images");
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
 } 

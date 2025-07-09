@@ -24,7 +24,7 @@ import com.breakupstories.util.TimestampUtil;
 public class CommentAnalysisService {
     
     private final CommentRepository commentRepository;
-    private final AIService aiService;
+    private final RetryableAIService retryableAIService;
     private final UserRepository userRepository;
     
     /**
@@ -57,7 +57,7 @@ public class CommentAnalysisService {
                 try {
                     var user = userRepository.findById(comment.getUserId()).orElse(null);
                     if(ObjectUtils.isEmpty(user)) continue;;
-                    var abuseDetectionResponse = aiService.detectAbuse(comment.getText(),user.getPreferredStoryLanguage());
+                    var abuseDetectionResponse = retryableAIService.detectAbuse(comment.getText(),user.getPreferredStoryLanguage());
                     comment.setAbusive(abuseDetectionResponse.getIs_abusive());
                     comment.setExplanation(abuseDetectionResponse.getExplanation());
                     comment.setCategory(abuseDetectionResponse.getCategory());
@@ -86,7 +86,7 @@ public class CommentAnalysisService {
             Comment comment = commentRepository.findById(commentId)
                     .orElseThrow(() -> new RuntimeException("Comment not found: " + commentId));
           var user = userRepository.findById(comment.getUserId()).orElseThrow(() -> new RuntimeException("user not found"));
-            return aiService.detectAbuse(comment.getText(),user.getPreferredStoryLanguage());
+            return retryableAIService.detectAbuse(comment.getText(),user.getPreferredStoryLanguage());
         } catch (Exception e) {
             log.error("Error analyzing comment {}: {}", commentId, e.getMessage(), e);
             throw new RuntimeException("Failed to analyze comment", e);

@@ -23,6 +23,7 @@ public class StoryResponse {
     private String title;
     private String audioUrl;
     private String thumbnailUrl;
+    private List<String> storyImages;
     private Long viewCount;
     private Long likeCount;
     private Long commentCount;
@@ -44,6 +45,7 @@ public class StoryResponse {
                 .title(story.getTitle())
                 .audioUrl(story.getAudioUrl())
                 .thumbnailUrl(story.getThumbnailUrl())
+                .storyImages(story.getStoryImages())
                 .viewCount(story.getViewCount())
                 .likeCount(likeCount)
                 .commentCount(commentCount)
@@ -67,6 +69,7 @@ public class StoryResponse {
                 .title(story.getTitle())
                 .audioUrl(story.getAudioUrl())
                 .thumbnailUrl(story.getThumbnailUrl())
+                .storyImages(story.getStoryImages())
                 .language(story.getLanguage())
                 .tags(story.getTags())
                 .viewCount(story.getViewCount())
@@ -90,6 +93,7 @@ public class StoryResponse {
                 .title(story.getTitle())
                 .audioUrl(story.getAudioUrl())
                 .thumbnailUrl(story.getThumbnailUrl())
+                .storyImages(story.getStoryImages())
                 .language(story.getLanguage())
                 .tags(story.getTags())
                 .viewCount(story.getViewCount())
