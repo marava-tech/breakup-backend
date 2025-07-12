@@ -44,6 +44,7 @@ public class DefaultConfigController {
         return ResponseEntity.ok(defaultConfigService.update(id, request));
     }
 
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     @Operation(summary = "Delete a config entry")
@@ -59,20 +60,44 @@ public class DefaultConfigController {
         return ResponseEntity.ok(defaultConfigService.getById(id));
     }
 
-    @GetMapping("/key/{key}")
+    
+    @GetMapping("/search")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    @Operation(summary = "Get config by key")
-    public ResponseEntity<DefaultConfigResponse> getByKey(@PathVariable String key) {
-        return ResponseEntity.ok(defaultConfigService.getByKey(key));
-    }
-
-    @GetMapping
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    @Operation(summary = "Get all configs (paginated)")
-    public ResponseEntity<PagedResponse<DefaultConfigResponse>> getAll(
+    @Operation(summary = "Search configs by key containing search term with pagination", 
+               description = "Search for configs where the key contains the provided search term (case-insensitive) with pagination support")
+    public ResponseEntity<Map<String, Object>> searchByKey(
+            @RequestParam(required = false) String searchTerm,
+            @RequestParam(defaultValue = "true") boolean activeOnly,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(defaultConfigService.getAll(page, size));
+        
+        try {
+            PagedResponse<DefaultConfigResponse> results = defaultConfigService.searchByKeyWithPagination(searchTerm, activeOnly, page, size);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", results.getContent());
+            response.put("pagination", Map.of(
+                "page", results.getPage(),
+                "size", results.getSize(),
+                "totalElements", results.getTotalElements(),
+                "totalPages", results.getTotalPages(),
+                "last", results.isLast()
+            ));
+            response.put("searchTerm", searchTerm);
+            response.put("activeOnly", activeOnly);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", e.getMessage());
+            errorResponse.put("message", "Failed to search configs");
+            errorResponse.put("searchTerm", searchTerm);
+            
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
     }
 
     @GetMapping("/languages")
@@ -137,27 +162,6 @@ public class DefaultConfigController {
             // Log the error for debugging
             log.error("Error in uploadFileAndSaveConfig: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
-    }
-
-    @GetMapping("/test-default-story-images")
-    public ResponseEntity<Map<String, Object>> testDefaultStoryImages() {
-        try {
-            List<String> storyImages = defaultConfigService.getDefaultStoryImages();
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("count", storyImages.size());
-            response.put("images", storyImages);
-            response.put("message", "Default story images retrieved successfully");
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("error", e.getMessage());
-            response.put("message", "Failed to retrieve default story images");
-            
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 

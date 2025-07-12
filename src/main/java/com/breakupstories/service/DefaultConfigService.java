@@ -77,6 +77,39 @@ public class DefaultConfigService {
                 .collect(Collectors.toList());
         return PagedResponse.of(configs, page, size, configPage.getTotalElements());
     }
+    
+
+    /**
+     * Search configs by key containing the search term with pagination (case-insensitive)
+     *
+     * @param searchTerm The search term to look for in config keys (optional)
+     * @param activeOnly Whether to return only active configs (default: false)
+     * @param page Page number (default: 0)
+     * @param size Page size (default: 10)
+     * @return Paged response of matching config responses
+     */
+    public PagedResponse<DefaultConfigResponse> searchByKeyWithPagination(String searchTerm, boolean activeOnly, int page, int size) {
+        try {
+            Page<DefaultConfig> configPage;
+            Pageable pageable = PageRequest.of(page, size);
+            
+            if (searchTerm == null || searchTerm.trim().isEmpty()) {
+                configPage = defaultConfigRepository.findByActive(activeOnly,pageable);
+            } else {
+                configPage = defaultConfigRepository.findByKeyContainingIgnoreCaseAndActive(searchTerm, activeOnly,pageable);
+            }
+            
+            List<DefaultConfigResponse> configs = configPage.getContent().stream()
+                    .map(DefaultConfigResponse::fromEntity)
+                    .collect(Collectors.toList());
+            
+            return PagedResponse.of(configs, page, size, configPage.getTotalElements());
+                    
+        } catch (Exception e) {
+            log.error("Error searching configs by key with pagination: {}", searchTerm, e);
+            return PagedResponse.of(List.of(), page, size, 0);
+        }
+    }
 
     /**
      * Get list of languages from the default configuration
