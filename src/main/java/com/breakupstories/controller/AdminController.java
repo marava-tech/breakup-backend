@@ -19,11 +19,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -791,6 +789,10 @@ public class AdminController {
             Map<String, Object> platformHealth = getPlatformHealthStats(fromDateTime, toDateTime);
             dashboardStats.put("platformHealth", platformHealth);
             
+            // Withdrawal Statistics
+            Map<String, Object> withdrawalStats = getWithdrawalStats(fromDateTime, toDateTime);
+            dashboardStats.put("withdrawalStats", withdrawalStats);
+            
             // Date range info
             Map<String, Object> dateRange = new HashMap<>();
             dateRange.put("fromDate", fromDateTime.toString());
@@ -1123,6 +1125,215 @@ public class AdminController {
         } catch (Exception e) {
             log.warn("Error calculating platform health stats: {}", e.getMessage());
             stats.put("error", "Unable to calculate platform health statistics");
+        }
+        
+        return stats;
+    }
+    
+    private Map<String, Object> getWithdrawalStats(LocalDateTime fromDate, LocalDateTime toDate) {
+        Map<String, Object> stats = new HashMap<>();
+        
+        try {
+            // Total withdrawals in date range
+            long totalWithdrawalsInRange = withdrawalRepository.countByCreatedAtBetween(fromDate, toDate);
+            stats.put("totalWithdrawalsInRange", totalWithdrawalsInRange);
+            
+            // Total withdrawals overall
+            long totalWithdrawalsOverall = withdrawalRepository.count();
+            stats.put("totalWithdrawalsOverall", totalWithdrawalsOverall);
+            
+            // Withdrawals by status in date range
+            long pendingWithdrawals = withdrawalRepository.countByStatusAndCreatedAtBetween(Withdrawal.WithdrawalStatus.PENDING, fromDate, toDate);
+            long processingWithdrawals = withdrawalRepository.countByStatusAndCreatedAtBetween(Withdrawal.WithdrawalStatus.PROCESSING, fromDate, toDate);
+            long processedWithdrawals = withdrawalRepository.countByStatusAndCreatedAtBetween(Withdrawal.WithdrawalStatus.PROCESSED, fromDate, toDate);
+            long rejectedWithdrawals = withdrawalRepository.countByStatusAndCreatedAtBetween(Withdrawal.WithdrawalStatus.REJECTED, fromDate, toDate);
+            
+            stats.put("pendingWithdrawals", pendingWithdrawals);
+            stats.put("processingWithdrawals", processingWithdrawals);
+            stats.put("processedWithdrawals", processedWithdrawals);
+            stats.put("rejectedWithdrawals", rejectedWithdrawals);
+            
+            // Total withdrawals by status overall
+            stats.put("totalPendingWithdrawals", withdrawalRepository.countByStatus(Withdrawal.WithdrawalStatus.PENDING));
+            stats.put("totalProcessingWithdrawals", withdrawalRepository.countByStatus(Withdrawal.WithdrawalStatus.PROCESSING));
+            stats.put("totalProcessedWithdrawals", withdrawalRepository.countByStatus(Withdrawal.WithdrawalStatus.PROCESSED));
+            stats.put("totalRejectedWithdrawals", withdrawalRepository.countByStatus(Withdrawal.WithdrawalStatus.REJECTED));
+            
+            // Amount calculations for date range
+            List<Withdrawal> withdrawalsInRange = withdrawalRepository.findByCreatedAtBetween(fromDate, toDate);
+            BigDecimal totalAmountInRange = withdrawalsInRange.stream()
+                    .map(Withdrawal::getMoneyInRs)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            BigDecimal totalCoinsInRange = withdrawalsInRange.stream()
+                    .map(Withdrawal::getCoins)
+                    .filter(Objects::nonNull)
+                    .map(BigDecimal::new)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            stats.put("totalAmountInRange", totalAmountInRange);
+            stats.put("totalCoinsInRange", totalCoinsInRange);
+            
+            // Processed withdrawals with amount
+            List<Withdrawal> processedWithdrawalsList = withdrawalRepository.findByStatusAndCreatedAtBetween(Withdrawal.WithdrawalStatus.PROCESSED, fromDate, toDate);
+            BigDecimal processedAmount = processedWithdrawalsList.stream()
+                    .map(Withdrawal::getMoneyInRs)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            BigDecimal processedCoins = processedWithdrawalsList.stream()
+                    .map(Withdrawal::getCoins)
+                    .filter(Objects::nonNull)
+                    .map(BigDecimal::new)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            stats.put("processedWithdrawalsCount", processedWithdrawals);
+            stats.put("processedAmount", processedAmount);
+            stats.put("processedCoins", processedCoins);
+            
+            // Pending withdrawals with amount
+            List<Withdrawal> pendingWithdrawalsList = withdrawalRepository.findByStatusAndCreatedAtBetween(Withdrawal.WithdrawalStatus.PENDING, fromDate, toDate);
+            BigDecimal pendingAmount = pendingWithdrawalsList.stream()
+                    .map(Withdrawal::getMoneyInRs)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            BigDecimal pendingCoins = pendingWithdrawalsList.stream()
+                    .map(Withdrawal::getCoins)
+                    .filter(Objects::nonNull)
+                    .map(BigDecimal::new)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            stats.put("pendingWithdrawalsCount", pendingWithdrawals);
+            stats.put("pendingAmount", pendingAmount);
+            stats.put("pendingCoins", pendingCoins);
+            
+            // Rejected withdrawals with amount
+            List<Withdrawal> rejectedWithdrawalsList = withdrawalRepository.findByStatusAndCreatedAtBetween(Withdrawal.WithdrawalStatus.REJECTED, fromDate, toDate);
+            BigDecimal rejectedAmount = rejectedWithdrawalsList.stream()
+                    .map(Withdrawal::getMoneyInRs)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            BigDecimal rejectedCoins = rejectedWithdrawalsList.stream()
+                    .map(Withdrawal::getCoins)
+                    .filter(Objects::nonNull)
+                    .map(BigDecimal::new)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            stats.put("rejectedWithdrawalsCount", rejectedWithdrawals);
+            stats.put("rejectedAmount", rejectedAmount);
+            stats.put("rejectedCoins", rejectedCoins);
+            
+            // Processing withdrawals with amount
+            List<Withdrawal> processingWithdrawalsList = withdrawalRepository.findByStatusAndCreatedAtBetween(Withdrawal.WithdrawalStatus.PROCESSING, fromDate, toDate);
+            BigDecimal processingAmount = processingWithdrawalsList.stream()
+                    .map(Withdrawal::getMoneyInRs)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            BigDecimal processingCoins = processingWithdrawalsList.stream()
+                    .map(Withdrawal::getCoins)
+                    .filter(Objects::nonNull)
+                    .map(BigDecimal::new)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            stats.put("processingWithdrawalsCount", processingWithdrawals);
+            stats.put("processingAmount", processingAmount);
+            stats.put("processingCoins", processingCoins);
+            
+            // Success rate calculations
+            double successRate = totalWithdrawalsInRange > 0 ? 
+                ((double) processedWithdrawals / totalWithdrawalsInRange) * 100 : 0;
+            stats.put("successRate", Math.round(successRate * 100.0) / 100.0);
+            
+            // Rejection rate
+            double rejectionRate = totalWithdrawalsInRange > 0 ? 
+                ((double) rejectedWithdrawals / totalWithdrawalsInRange) * 100 : 0;
+            stats.put("rejectionRate", Math.round(rejectionRate * 100.0) / 100.0);
+            
+            // Processing rate
+            double processingRate = totalWithdrawalsInRange > 0 ? 
+                ((double) processingWithdrawals / totalWithdrawalsInRange) * 100 : 0;
+            stats.put("processingRate", Math.round(processingRate * 100.0) / 100.0);
+            
+            // Pending rate
+            double pendingRate = totalWithdrawalsInRange > 0 ? 
+                ((double) pendingWithdrawals / totalWithdrawalsInRange) * 100 : 0;
+            stats.put("pendingRate", Math.round(pendingRate * 100.0) / 100.0);
+            
+            // Average withdrawal amount in date range
+            double avgWithdrawalAmount = totalWithdrawalsInRange > 0 ? 
+                totalAmountInRange.doubleValue() / totalWithdrawalsInRange : 0;
+            stats.put("avgWithdrawalAmount", Math.round(avgWithdrawalAmount * 100.0) / 100.0);
+            
+            // Average processed withdrawal amount
+            double avgProcessedAmount = processedWithdrawals > 0 ? 
+                processedAmount.doubleValue() / processedWithdrawals : 0;
+            stats.put("avgProcessedAmount", Math.round(avgProcessedAmount * 100.0) / 100.0);
+            
+            // Average pending withdrawal amount
+            double avgPendingAmount = pendingWithdrawals > 0 ? 
+                pendingAmount.doubleValue() / pendingWithdrawals : 0;
+            stats.put("avgPendingAmount", Math.round(avgPendingAmount * 100.0) / 100.0);
+            
+            // Average daily withdrawals
+            long durationDays = java.time.Duration.between(fromDate, toDate).toDays();
+            double avgDailyWithdrawals = durationDays > 0 ? (double) totalWithdrawalsInRange / durationDays : 0;
+            stats.put("avgDailyWithdrawals", Math.round(avgDailyWithdrawals * 100.0) / 100.0);
+            
+            // Average daily processed withdrawals
+            double avgDailyProcessed = durationDays > 0 ? (double) processedWithdrawals / durationDays : 0;
+            stats.put("avgDailyProcessed", Math.round(avgDailyProcessed * 100.0) / 100.0);
+            
+            // Growth rate (comparing with previous period)
+            LocalDateTime previousFromDate = fromDate.minus(java.time.Duration.between(fromDate, toDate));
+            long previousPeriodWithdrawals = withdrawalRepository.countByCreatedAtBetween(previousFromDate, fromDate);
+            double growthRate = previousPeriodWithdrawals > 0 ? 
+                ((double) (totalWithdrawalsInRange - previousPeriodWithdrawals) / previousPeriodWithdrawals) * 100 : 0;
+            stats.put("growthRate", Math.round(growthRate * 100.0) / 100.0);
+            
+            // Amount growth rate
+            List<Withdrawal> previousPeriodWithdrawalsList = withdrawalRepository.findByCreatedAtBetween(previousFromDate, fromDate);
+            BigDecimal previousPeriodAmount = previousPeriodWithdrawalsList.stream()
+                    .map(Withdrawal::getMoneyInRs)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            double amountGrowthRate = previousPeriodAmount.compareTo(BigDecimal.ZERO) > 0 ? 
+                ((totalAmountInRange.doubleValue() - previousPeriodAmount.doubleValue()) / previousPeriodAmount.doubleValue()) * 100 : 0;
+            stats.put("amountGrowthRate", Math.round(amountGrowthRate * 100.0) / 100.0);
+            
+            // Top withdrawal amounts in date range
+            List<Map<String, Object>> topWithdrawals = withdrawalsInRange.stream()
+                    .filter(w -> w.getMoneyInRs() != null)
+                    .sorted((w1, w2) -> w2.getMoneyInRs().compareTo(w1.getMoneyInRs()))
+                    .limit(5)
+                    .map(w -> {
+                        Map<String, Object> withdrawalInfo = new HashMap<>();
+                        withdrawalInfo.put("withdrawalId", w.getId());
+                        withdrawalInfo.put("userId", w.getUserId());
+                        withdrawalInfo.put("amount", w.getMoneyInRs());
+                        withdrawalInfo.put("coins", w.getCoins());
+                        withdrawalInfo.put("status", w.getStatus());
+                        withdrawalInfo.put("createdAt", w.getCreatedAt());
+                        return withdrawalInfo;
+                    })
+                    .collect(java.util.stream.Collectors.toList());
+            stats.put("topWithdrawals", topWithdrawals);
+            
+            // Status distribution summary
+            Map<String, Object> statusDistribution = new HashMap<>();
+            statusDistribution.put("processed", Map.of("count", processedWithdrawals, "amount", processedAmount, "percentage", successRate));
+            statusDistribution.put("pending", Map.of("count", pendingWithdrawals, "amount", pendingAmount, "percentage", pendingRate));
+            statusDistribution.put("processing", Map.of("count", processingWithdrawals, "amount", processingAmount, "percentage", processingRate));
+            statusDistribution.put("rejected", Map.of("count", rejectedWithdrawals, "amount", rejectedAmount, "percentage", rejectionRate));
+            stats.put("statusDistribution", statusDistribution);
+            
+        } catch (Exception e) {
+            log.warn("Error calculating withdrawal stats: {}", e.getMessage());
+            stats.put("error", "Unable to calculate withdrawal statistics");
         }
         
         return stats;
