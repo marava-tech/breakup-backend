@@ -30,4 +30,13 @@ public interface WithdrawalRepository extends MongoRepository<Withdrawal, String
     boolean existsByUserIdAndMoneyInRsIsNotNull(String userId);
     
     boolean existsByUserIdAndMoneyInRs(String userId, BigDecimal moneyInRs);
+    
+    // New methods for withdrawal statistics
+    long countByCreatedAtBetween(LocalDateTime fromDate, LocalDateTime toDate);
+    
+    long countByStatusAndCreatedAtBetween(Withdrawal.WithdrawalStatus status, LocalDateTime fromDate, LocalDateTime toDate);
+    
+    List<Withdrawal> findByCreatedAtBetween(LocalDateTime fromDate, LocalDateTime toDate);
+    
+    List<Withdrawal> findByStatusAndCreatedAtBetween(Withdrawal.WithdrawalStatus status, LocalDateTime fromDate, LocalDateTime toDate);
 } 
