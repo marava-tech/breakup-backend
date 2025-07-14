@@ -170,7 +170,7 @@ public class WithdrawalService {
      * Get withdrawal options for a user
      * 
      * @param userId The user ID to check eligibility
-     * @return Withdrawal options response with amounts, coins, eligibility, and processing time
+     * @return Withdrawal options response with amounts, coins, eligibility, processing time, and pause configuration
      */
     public WithdrawalOptionsResponse getWithdrawalOptions(String userId) {
         // Hardcoded amounts as per requirement (with 2 decimal places for consistency)
@@ -186,6 +186,10 @@ public class WithdrawalService {
         
         // Get default processing time from config
         String defaultProcessingTime = getDefaultProcessingTime();
+        
+        // Get pause configuration from config
+        boolean pauseWithdrawals = getPauseWithdrawals();
+        String pauseWithdrawalsReason = getPauseWithdrawalsReason();
         
         List<WithdrawalOptionResponse> options = Stream.of(amounts)
                 .map(amount -> {
@@ -205,7 +209,7 @@ public class WithdrawalService {
                 })
                 .collect(Collectors.toList());
         
-        return WithdrawalOptionsResponse.of(options, defaultProcessingTime);
+        return WithdrawalOptionsResponse.of(options, defaultProcessingTime, pauseWithdrawals, pauseWithdrawalsReason);
     }
     
     /**
@@ -230,6 +234,31 @@ public class WithdrawalService {
         } catch (Exception e) {
             // Fallback to default processing time if config not found
             return "3-5 business days";
+        }
+    }
+    
+    /**
+     * Get pause withdrawals configuration from config
+     */
+    private boolean getPauseWithdrawals() {
+        try {
+            String pauseWithdrawalsString = defaultConfigService.getByKey("pause_withdrawls").getValue();
+            return Boolean.parseBoolean(pauseWithdrawalsString);
+        } catch (Exception e) {
+            // Fallback to false if config not found
+            return false;
+        }
+    }
+    
+    /**
+     * Get pause withdrawals reason from config
+     */
+    private String getPauseWithdrawalsReason() {
+        try {
+            return defaultConfigService.getByKey("pause_withdrawls_reason").getValue();
+        } catch (Exception e) {
+            // Fallback to default reason if config not found
+            return "Withdrawals are temporarily paused";
         }
     }
 } 

@@ -40,6 +40,8 @@ public class WithdrawalOptionResponse {
 public class WithdrawalOptionsResponse {
     private List<WithdrawalOptionResponse> options;  // List of withdrawal options
     private String defaultProcessingTime;             // Common processing time for all options
+    private boolean pauseWithdrawals;                 // Whether withdrawals are paused
+    private String pauseWithdrawalsReason;            // Reason for pausing withdrawals
 }
 ```
 
@@ -89,6 +91,17 @@ String defaultProcessingTime = defaultConfigService.getByKey("default_payment_pr
 
 **Fallback**: "3-5 business days" if configuration is not found
 
+### Pause Configuration
+
+The withdrawal pause status and reason are fetched from the default configuration:
+
+```java
+boolean pauseWithdrawals = Boolean.parseBoolean(defaultConfigService.getByKey("pause_withdrawls").getValue());
+String pauseWithdrawalsReason = defaultConfigService.getByKey("pause_withdrawls_reason").getValue();
+```
+
+**Fallback**: `false` for pause status and "Withdrawals are temporarily paused" for reason if configuration is not found
+
 ## Response Examples
 
 ### Successful Response
@@ -119,7 +132,9 @@ String defaultProcessingTime = defaultConfigService.getByKey("default_payment_pr
         "isEligible": true
       }
     ],
-    "defaultProcessingTime": "3-5 business days"
+    "defaultProcessingTime": "3-5 business days",
+    "pauseWithdrawals": false,
+    "pauseWithdrawalsReason": "Withdrawals are temporarily paused"
   }
 }
 ```
@@ -152,7 +167,9 @@ String defaultProcessingTime = defaultConfigService.getByKey("default_payment_pr
         "isEligible": true
       }
     ],
-    "defaultProcessingTime": "3-5 business days"
+    "defaultProcessingTime": "3-5 business days",
+    "pauseWithdrawals": false,
+    "pauseWithdrawalsReason": "Withdrawals are temporarily paused"
   }
 }
 ```
@@ -181,6 +198,14 @@ The API requires the following configuration keys in the `default_config` collec
    - Example: "3-5 business days"
    - Fallback: "3-5 business days"
 
+3. **`pause_withdrawls`**: Whether withdrawals are paused
+   - Example: "true" or "false"
+   - Fallback: false
+
+4. **`pause_withdrawls_reason`**: Reason for pausing withdrawals
+   - Example: "due to technical issues we paused withdrawls"
+   - Fallback: "Withdrawals are temporarily paused"
+
 ### Configuration Setup
 
 ```javascript
@@ -196,6 +221,20 @@ The API requires the following configuration keys in the `default_config` collec
   "key": "default_payment_processing_time",
   "value": "3-5 business days",
   "description": "Default processing time for withdrawals",
+  "active": true
+}
+
+{
+  "key": "pause_withdrawls",
+  "value": "true",
+  "description": "Allow pause withdrawls",
+  "active": true
+}
+
+{
+  "key": "pause_withdrawls_reason",
+  "value": "due to technical issues we paused withdrawls",
+  "description": "Reason for pause withdrawls",
   "active": true
 }
 ```

@@ -11,9 +11,9 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ParagraphRewriteResponse {
+public class VisualPromptResponse {
     
-    private List<Paragraph> paragraphs;
+    private List<VisualPrompt> visualPrompts;
     private String status;
     private String error;
 
@@ -21,10 +21,10 @@ public class ParagraphRewriteResponse {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public static class Paragraph {
-        private String originalText;
-        private String rewrittenText;
+    public static class VisualPrompt {
         private Integer paragraphNumber;
+        private String paragraphText;
+        private String visualDescription;
         private String style;
     }
 } 

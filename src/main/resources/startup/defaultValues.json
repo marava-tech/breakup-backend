@@ -69,5 +69,16 @@
     "value": "5",
     "description": "Minimum duration in minutes for first story reward",
     "active": true
+  },
+  {
+    "key": "pause_withdrawls",
+    "value": "true",
+    "description": "Allow pause withdrawls",
+    "active": true
+  },    {
+    "key": "pause_withdrawls_reason",
+    "value": "due to technical issues we paused withdrawls",
+    "description": "Reason for pause withdrawls",
+    "active": true
   }
 ]
