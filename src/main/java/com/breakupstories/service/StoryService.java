@@ -8,7 +8,7 @@ import com.breakupstories.dto.CommentResponse;
 import com.breakupstories.dto.StorySearchRequest;
 import com.breakupstories.dto.StorySearchResponse;
 import com.breakupstories.dto.StoryWithTrendingScore;
-import com.breakupstories.dto.TranscriptionResponse;
+
 import com.breakupstories.model.Story;
 import com.breakupstories.model.StoryDataStore;
 import com.breakupstories.model.StoryMetadata;
@@ -194,13 +194,6 @@ public class StoryService {
             String storyId = savedStory.getId();
             log.info("Initial written story created with ID: {} for user: {} [RequestID: {}]", storyId, userId, requestId);
             
-            // Step 4: Create TranscriptionResponse with user-entered text
-            TranscriptionResponse transcriptionResponse = TranscriptionResponse.builder()
-                    .transcript(request.getStoryText())
-                    .language(request.getLanguage())
-                    .confidence(1.0) // Set confidence to 1 for written stories
-                    .build();
-            
             // Step 5: Create StoryDataStore with PROCESSING_PENDING status and transcription response
             StoryDataStore dataStore = StoryDataStore.builder()
                     .id(storyId)
@@ -209,7 +202,6 @@ public class StoryService {
                     .language(request.getLanguage())
                     .processingStatus(StoryDataStore.ProcessingStatus.PROCESSING_PENDING) // Skip upload step
                     .uploadMetadata(uploadMetadata)
-                    .transcriptionResponse(transcriptionResponse) // Store the transcription response
                     .transcriptionCompletedAt(TimestampUtil.currentLocalDateTime()) // Mark transcription as completed
                     .createdAt(TimestampUtil.currentLocalDateTime())
                     .updatedAt(TimestampUtil.currentLocalDateTime())

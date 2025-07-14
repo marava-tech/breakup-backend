@@ -16,12 +16,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Background worker that converts processed stories to final Story entities
+ * Background worker that converts stories with STORY_CONVERSION_PENDING status to final Story entities
  * 
  * Workflow:
- * 1. Fetches stories with PROCESSED status
- * 2. Sets status to CONVERTING
+ * 1. Fetches stories with STORY_CONVERSION_PENDING status
+ * 2. Marks them as COMPLETED immediately after fetching to prevent duplicate processing
  * 3. Converts StoryDataStore to final Story entity
+ * 4. Any errors mark the story as FAILED with error details
  */
 @Component
 @RequiredArgsConstructor
@@ -43,36 +44,29 @@ public class StoryConversionWorker {
         log.info("Starting story conversion worker (Request ID: {})", requestId);
         
         try {
-            // Fetch stories with PROCESSED status, ordered by creation time (oldest first)
-            List<StoryDataStore> processedStories = storyDataStoreRepository.findByProcessingStatusOrderByCreatedAtAscLimit(StoryDataStore.ProcessingStatus.PROCESSED, 10);
+            // Fetch stories with STORY_CONVERSION_PENDING status, ordered by creation time (oldest first)
+            List<StoryDataStore> pendingStories = storyDataStoreRepository.findByProcessingStatusOrderByCreatedAtAscLimit(StoryDataStore.ProcessingStatus.STORY_CONVERSION_PENDING, 10);
             
-            // Fetch stories with FAILED status, ordered by creation time (oldest first)
-            List<StoryDataStore> failedStories = storyDataStoreRepository.findByProcessingStatusOrderByCreatedAtAscLimit(StoryDataStore.ProcessingStatus.FAILED, 10);
-            
-            if (processedStories.isEmpty() && failedStories.isEmpty()) {
+            if (pendingStories.isEmpty()) {
                 log.info("No stories pending conversion (Request ID: {})", requestId);
                 return;
             }
             
-            log.info("Found {} processed stories and {} failed stories pending conversion (Request ID: {})", 
-                    processedStories.size(), failedStories.size(), requestId);
+            log.info("Found {} stories pending conversion (Request ID: {})", pendingStories.size(), requestId);
             
-            // Process each processed story
-            for (StoryDataStore dataStore : processedStories) {
+            // Process each pending story
+            for (StoryDataStore dataStore : pendingStories) {
                 try {
+                    // Mark as COMPLETED immediately after fetching to prevent duplicate processing
+                    dataStore.setProcessingStatus(StoryDataStore.ProcessingStatus.COMPLETED);
+                    storyDataStoreRepository.save(dataStore);
+                    log.info("Marked story {} as COMPLETED before processing (Request ID: {})", dataStore.getId(), requestId);
+                    
+                    // Now proceed with conversion
                     convertStory(dataStore, requestId);
+                    
                 } catch (Exception e) {
                     log.error("Error converting story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage(), e);
-                    markStoryAsFailed(dataStore, "Conversion failed: " + e.getMessage());
-                }
-            }
-            
-            // Process each failed story
-            for (StoryDataStore dataStore : failedStories) {
-                try {
-                    convertFailedStory(dataStore, requestId);
-                } catch (Exception e) {
-                    log.error("Error converting failed story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage(), e);
                     markStoryAsFailed(dataStore, "Conversion failed: " + e.getMessage());
                 }
             }
@@ -97,8 +91,7 @@ public class StoryConversionWorker {
             // Check if story is valid based on story analysis
             if (dataStore.getStoryAnalysisResponse() != null && 
                 dataStore.getStoryAnalysisResponse().getAnalysis() != null &&
-                dataStore.getStoryAnalysisResponse().getAnalysis().getIs_valid_story() != null &&
-                !dataStore.getStoryAnalysisResponse().getAnalysis().getIs_valid_story()) {
+                !dataStore.getStoryAnalysisResponse().getAnalysis().isValidStory()) {
                 
                 log.warn("Story {} marked as invalid by AI analysis - not a love/breakup related story (Request ID: {})", 
                         dataStore.getId(), requestId);
@@ -117,8 +110,6 @@ public class StoryConversionWorker {
                 // Update status to COMPLETED using StoryStatusService
                 storyStatusService.updateStatusInBothCollections(dataStore.getStoryId(), Story.StoryStatus.ACTIVE);
             }
-            
-            log.info("Successfully converted story: {} to final Story entity (Request ID: {})", dataStore.getId(), requestId);
             
         } catch (Exception e) {
             log.error("Error converting story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage(), e);
@@ -142,19 +133,7 @@ public class StoryConversionWorker {
                 rejectionReasons.append("General errors: ").append(String.join(", ", dataStore.getErrors())).append("; ");
             }
             
-            // Add step-specific errors
-            if (dataStore.getTranscriptionError() != null) {
-                rejectionReasons.append("Transcription error: ").append(dataStore.getTranscriptionError()).append("; ");
-            }
-            if (dataStore.getRewriteError() != null) {
-                rejectionReasons.append("Rewrite error: ").append(dataStore.getRewriteError()).append("; ");
-            }
-            if (dataStore.getParagraphError() != null) {
-                rejectionReasons.append("Paragraph error: ").append(dataStore.getParagraphError()).append("; ");
-            }
-            if (dataStore.getAnalysisError() != null) {
-                rejectionReasons.append("Analysis error: ").append(dataStore.getAnalysisError()).append("; ");
-            }
+
             
             // Add step errors from map
             if (dataStore.getStepErrors() != null && !dataStore.getStepErrors().isEmpty()) {
@@ -183,8 +162,8 @@ public class StoryConversionWorker {
                     .emotions(extractEmotionsFromDataStore(dataStore))
                     .language(dataStore.getLanguage())
                     .audioUrl(dataStore.getAudioUrl())
-                    .thumbnailUrl(defaultConfigService.getDefaultThumbnailUrl())
-                    .storyImages(defaultConfigService.getDefaultStoryImages())
+                    .thumbnailUrl(extractThumbnailUrl(dataStore))
+                    .storyImages(extractStoryImages(dataStore))
                     .duration(dataStore.getDuration())
                     .rejectionReasons(!rejectionReasons.isEmpty() ? List.of(rejectionReasons.toString()) : null)
                     .status(Story.StoryStatus.ACTIVE) // All converted stories are active
@@ -217,18 +196,18 @@ public class StoryConversionWorker {
         
         // First, try to extract from paragraphRewriteResponse (preferred)
         if (dataStore.getParagraphRewriteResponse() != null && 
-            dataStore.getParagraphRewriteResponse().getContents() != null) {
+            dataStore.getParagraphRewriteResponse().getParagraphs() != null) {
             
             log.info("Extracting {} paragraphs from paragraphRewriteResponse for story: {}", 
-                    dataStore.getParagraphRewriteResponse().getContents().size(), dataStore.getId());
+                    dataStore.getParagraphRewriteResponse().getParagraphs().size(), dataStore.getId());
             
-            for (int i = 0; i < dataStore.getParagraphRewriteResponse().getContents().size(); i++) {
-                var paragraphContent = dataStore.getParagraphRewriteResponse().getContents().get(i);
+            for (int i = 0; i < dataStore.getParagraphRewriteResponse().getParagraphs().size(); i++) {
+                var paragraphContent = dataStore.getParagraphRewriteResponse().getParagraphs().get(i);
                 
                 com.breakupstories.model.Content content = com.breakupstories.model.Content.builder()
-                        .type(com.breakupstories.model.Content.ContentType.valueOf(paragraphContent.getType().toUpperCase()))
-                        .data(paragraphContent.getData())
-                        .orderIndex(paragraphContent.getOrderIndex() != null ? paragraphContent.getOrderIndex() : i + 1)
+                        .type(com.breakupstories.model.Content.ContentType.TEXT)
+                        .data(paragraphContent.getRewrittenText())
+                        .orderIndex(paragraphContent.getParagraphNumber() != null ? paragraphContent.getParagraphNumber() : i + 1)
                         .build();
                 
                 contents.add(content);
@@ -238,14 +217,14 @@ public class StoryConversionWorker {
                     contents.size(), dataStore.getId());
             
         } else if (dataStore.getStoryRewriteResponse() != null && 
-                   dataStore.getStoryRewriteResponse().getRewrittenStory() != null) {
+                   dataStore.getStoryRewriteResponse().getRewrittenText() != null) {
             
             // Fallback to storyRewriteResponse if paragraphRewriteResponse is not available
             log.info("Using storyRewriteResponse as fallback for story: {}", dataStore.getId());
             
             com.breakupstories.model.Content content = com.breakupstories.model.Content.builder()
                     .type(com.breakupstories.model.Content.ContentType.TEXT)
-                    .data(dataStore.getStoryRewriteResponse().getRewrittenStory())
+                    .data(dataStore.getStoryRewriteResponse().getRewrittenText())
                     .orderIndex(1)
                     .build();
             
@@ -292,6 +271,35 @@ public class StoryConversionWorker {
     }
     
     /**
+     * Extract thumbnail URL from data store
+     */
+    private String extractThumbnailUrl(StoryDataStore dataStore) {
+        if (dataStore.getImagesResponse() != null && 
+            dataStore.getImagesResponse().getThumbnailImageUrl() != null) {
+            log.info("Using thumbnail from images response for story: {}", dataStore.getId());
+            return dataStore.getImagesResponse().getThumbnailImageUrl();
+        }
+        
+        log.warn("No thumbnail available from images response for story: {}, using default", dataStore.getId());
+        return defaultConfigService.getDefaultThumbnailUrl();
+    }
+    
+    /**
+     * Extract story images from data store
+     */
+    private List<String> extractStoryImages(StoryDataStore dataStore) {
+        if (dataStore.getImagesResponse() != null && 
+            dataStore.getImagesResponse().getStoryImageUrls() != null) {
+            log.info("Using {} story images from images response for story: {}", 
+                    dataStore.getImagesResponse().getStoryImageUrls().size(), dataStore.getId());
+            return dataStore.getImagesResponse().getStoryImageUrls();
+        }
+        
+        log.warn("No story images available from images response for story: {}, using default", dataStore.getId());
+        return defaultConfigService.getDefaultStoryImages();
+    }
+    
+    /**
      * Extract emotions from data store
      */
     private List<com.breakupstories.model.Emotion> extractEmotionsFromDataStore(StoryDataStore dataStore) {
@@ -299,9 +307,9 @@ public class StoryConversionWorker {
         
         if (dataStore.getStoryAnalysisResponse() != null && 
             dataStore.getStoryAnalysisResponse().getAnalysis() != null &&
-            dataStore.getStoryAnalysisResponse().getAnalysis().getEmotions_with_scores() != null) {
+            dataStore.getStoryAnalysisResponse().getAnalysis().getEmotionsWithScores() != null) {
             
-            Map<String, Double> emotionScores = dataStore.getStoryAnalysisResponse().getAnalysis().getEmotions_with_scores();
+            Map<String, Double> emotionScores = dataStore.getStoryAnalysisResponse().getAnalysis().getEmotionsWithScores();
             
             for (Map.Entry<String, Double> entry : emotionScores.entrySet()) {
                 try {
@@ -334,6 +342,11 @@ public class StoryConversionWorker {
         log.error("Marking story as failed: {} - {}", dataStore.getId(), errorMessage);
         
         try {
+            // Update the StoryDataStore status to FAILED
+            dataStore.setProcessingStatus(StoryDataStore.ProcessingStatus.FAILED);
+            dataStore.setErrorMessage(errorMessage);
+            storyDataStoreRepository.save(dataStore);
+            
             // Use StoryStatusService to mark story as failed in both collections
             storyStatusService.markStoryAsFailed(dataStore.getStoryId(), errorMessage);
             
@@ -344,110 +357,9 @@ public class StoryConversionWorker {
         }
     }
     
-    /**
-     * Convert a single failed story to final Story entity with rejection reasons
-     */
-    private void convertFailedStory(StoryDataStore dataStore, String requestId) {
-        log.info("Converting failed story: {} (Request ID: {})", dataStore.getId(), requestId);
-        
-        try {
-            // Update status to CONVERTING using StoryStatusService
-            storyStatusService.updateStatusInBothCollections(dataStore.getStoryId(), Story.StoryStatus.CONVERTING);
-            
-            // Create final Story entity with rejection reasons
-            Story story = createFailedStoryFromDataStore(dataStore, requestId);
-            
-            // Update status to REJECTED using StoryStatusService
-            storyStatusService.updateStatusInBothCollections(dataStore.getStoryId(), Story.StoryStatus.REJECTED);
-            
-            // Save the Story entity
-            Story savedStory = storyRepository.save(story);
-            
-            log.info("Successfully converted failed story: {} to final Story entity with rejection reasons (Request ID: {})", dataStore.getId(), requestId);
-            
-        } catch (Exception e) {
-            log.error("Error converting failed story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage(), e);
-            markStoryAsFailed(dataStore, "Conversion failed: " + e.getMessage());
-            throw e;
-        }
-    }
+
     
-    /**
-     * Create Story entity from failed StoryDataStore
-     */
-    private Story createFailedStoryFromDataStore(StoryDataStore dataStore, String requestId) {
-        log.info("Creating failed Story from StoryDataStore for story: {} (Request ID: {})", dataStore.getId(), requestId);
-        
-        try {
-            // Build rejection reasons from all error fields
-            StringBuilder rejectionReasons = new StringBuilder();
-            
-            // Add general error message
-            if (dataStore.getErrorMessage() != null && !dataStore.getErrorMessage().trim().isEmpty()) {
-                rejectionReasons.append("General error: ").append(dataStore.getErrorMessage()).append("; ");
-            }
-            
-            // Add general errors
-            if (dataStore.getErrors() != null && !dataStore.getErrors().isEmpty()) {
-                rejectionReasons.append("General errors: ").append(String.join(", ", dataStore.getErrors())).append("; ");
-            }
-            
-            // Add step-specific errors
-            if (dataStore.getTranscriptionError() != null) {
-                rejectionReasons.append("Transcription error: ").append(dataStore.getTranscriptionError()).append("; ");
-            }
-            if (dataStore.getRewriteError() != null) {
-                rejectionReasons.append("Rewrite error: ").append(dataStore.getRewriteError()).append("; ");
-            }
-            if (dataStore.getParagraphError() != null) {
-                rejectionReasons.append("Paragraph error: ").append(dataStore.getParagraphError()).append("; ");
-            }
-            if (dataStore.getAnalysisError() != null) {
-                rejectionReasons.append("Analysis error: ").append(dataStore.getAnalysisError()).append("; ");
-            }
-            
-            // Add step errors from map
-            if (dataStore.getStepErrors() != null && !dataStore.getStepErrors().isEmpty()) {
-                dataStore.getStepErrors().forEach((step, error) -> 
-                    rejectionReasons.append(step).append(" error: ").append(error).append("; "));
-            }
-            
-            // If no specific errors found, add a generic rejection reason
-            if (rejectionReasons.length() == 0) {
-                rejectionReasons.append("Story processing failed - no specific error details available; ");
-            }
-            
-            // Create Story entity with REJECTED status
-            Story story = Story.builder()
-                    .id(dataStore.getStoryId())
-                    .userId(dataStore.getUserId())
-                    .title(dataStore.getTitle() != null ? dataStore.getTitle() : "Failed Story")
-                    .contents(extractContentsFromDataStore(dataStore))
-                    .tags(extractTagsFromDataStore(dataStore))
-                    .emotions(extractEmotionsFromDataStore(dataStore))
-                    .language(dataStore.getLanguage())
-                    .audioUrl(dataStore.getAudioUrl())
-                    .thumbnailUrl(defaultConfigService.getDefaultThumbnailUrl())
-                    .storyImages(defaultConfigService.getDefaultStoryImages())
-                    .duration(dataStore.getDuration())
-                    .rejectionReasons(List.of(rejectionReasons.toString()))
-                    .status(Story.StoryStatus.REJECTED) // Failed stories are rejected
-                    .createdAt(dataStore.getCreatedAt())
-                    .updatedAt(TimestampUtil.currentLocalDateTime())
-                    .build();
-            
-            // Save the Story entity
-            Story savedStory = storyRepository.save(story);
-            
-            log.info("Successfully created failed Story from StoryDataStore for story: {} (Request ID: {})", dataStore.getId(), requestId);
-            
-            return savedStory;
-            
-        } catch (Exception e) {
-            log.error("Error creating failed Story from StoryDataStore for story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage(), e);
-            throw new RuntimeException("Failed to create failed Story from StoryDataStore: " + e.getMessage(), e);
-        }
-    }
+
 
     /**
      * Create rejected Story entity from StoryDataStore with custom rejection reason
@@ -468,24 +380,7 @@ public class StoryConversionWorker {
             }
             
             // Add step-specific errors
-            if (dataStore.getTranscriptionError() != null) {
-                rejectionReasons.append("Transcription error: ").append(dataStore.getTranscriptionError()).append("; ");
-            }
-            if (dataStore.getRewriteError() != null) {
-                rejectionReasons.append("Rewrite error: ").append(dataStore.getRewriteError()).append("; ");
-            }
-            if (dataStore.getParagraphError() != null) {
-                rejectionReasons.append("Paragraph error: ").append(dataStore.getParagraphError()).append("; ");
-            }
-            if (dataStore.getAnalysisError() != null) {
-                rejectionReasons.append("Analysis error: ").append(dataStore.getAnalysisError()).append("; ");
-            }
-            
-            // Add step errors from map
-            if (dataStore.getStepErrors() != null && !dataStore.getStepErrors().isEmpty()) {
-                dataStore.getStepErrors().forEach((step, error) -> 
-                    rejectionReasons.append(step).append(" error: ").append(error).append("; "));
-            }
+            // (AI-related error fields removed)
             
             // Create Story entity with REJECTED status
             Story story = Story.builder()
@@ -497,8 +392,8 @@ public class StoryConversionWorker {
                     .emotions(extractEmotionsFromDataStore(dataStore))
                     .language(dataStore.getLanguage())
                     .audioUrl(dataStore.getAudioUrl())
-                    .thumbnailUrl(defaultConfigService.getDefaultThumbnailUrl())
-                    .storyImages(defaultConfigService.getDefaultStoryImages())
+                    .thumbnailUrl(extractThumbnailUrl(dataStore))
+                    .storyImages(extractStoryImages(dataStore))
                     .duration(dataStore.getDuration())
                     .rejectionReasons(List.of(rejectionReasons.toString()))
                     .status(Story.StoryStatus.REJECTED) // Invalid stories are rejected

@@ -5,15 +5,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * DTO for story rewrite requests
- */
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class StoryRewriteRequest {
-    
-    private String transcript;
-    private String language;
+public class ImagesResponse {
+    private String thumbnailImageUrl;
+    private List<String> storyImageUrls;
+    private String status;
+    private String error;
 } 
