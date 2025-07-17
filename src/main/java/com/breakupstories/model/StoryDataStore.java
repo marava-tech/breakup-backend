@@ -86,6 +86,8 @@ public class StoryDataStore {
     
     @LastModifiedDate
     private LocalDateTime updatedAt;
+
+    private boolean isConversionPending;
     
     public enum ProcessingStatus {
         UPLOAD_PENDING,    // Initial state - waiting for upload
@@ -96,9 +98,7 @@ public class StoryDataStore {
         CONVERTING,        // Converting to final Story
         COMPLETED,         // All processing steps completed
         FAILED,            // Processing failed
-        REJECTED,          // Story was rejected
-        STORY_CONVERSION_PENDING,
-        WRITTEN_UPLOAD_PENDING
+        REJECTED          // Story was rejecte
     }
     
     /**

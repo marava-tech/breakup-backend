@@ -636,7 +636,113 @@ public class StoryService {
         return PagedResponse.of(stories, page, size, storyPage.getTotalElements());
     }
     
+    /**
+     * Get my stories from StoryDataStore collection (fetching status from StoryDataStore instead of Story)
+     * @param currentUserId The current user ID
+     * @param page Page number
+     * @param size Page size
+     * @return PagedResponse of stories with status from StoryDataStore
+     */
+    public PagedResponse<StoryResponse> getMyStoriesFromDataStore(String currentUserId, int page, int size) {
+        String requestId = RequestContext.getRequestId();
+        log.info("Getting my stories from StoryDataStore for user: {} [RequestID: {}]", currentUserId, requestId);
+        
+        try {
+            // Get all StoryDataStore entries for the user
+            List<StoryDataStore> userDataStores = storyDataStoreRepository.findByUserId(currentUserId);
+            
+            // Sort by creation date (newest first)
+            userDataStores.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+            
+            // Apply pagination
+            int startIndex = page * size;
+            int endIndex = Math.min(startIndex + size, userDataStores.size());
+            
+            List<StoryDataStore> paginatedDataStores = userDataStores.subList(startIndex, endIndex);
+            
+            // Convert to StoryResponse objects
+            List<StoryResponse> stories = paginatedDataStores.stream()
+                    .map(dataStore -> {
+                        try {
+                            // Get the corresponding Story entity for additional data
+                            Story story = storyRepository.findById(dataStore.getStoryId()).orElse(null);
+                            User user = userService.getUserEntityById(dataStore.getUserId());
+                            
+                            // Get interaction data
+                            boolean likedByMe = likeService.isLiked(currentUserId, dataStore.getStoryId());
+                            boolean bookmarkedByMe = bookmarkService.isBookmarked(currentUserId, dataStore.getStoryId());
+                            long likeCount = getLikeCount(dataStore.getStoryId());
+                            long commentCount = getCommentCount(dataStore.getStoryId());
+                            
+                            // Convert ProcessingStatus to StoryStatus
+                            Story.StoryStatus storyStatus = convertProcessingStatusToStoryStatus(dataStore.getProcessingStatus());
+                            
+                            // Create StoryResponse with status from StoryDataStore
+                            // Use status from StoryDataStore
 
+                            return StoryResponse.builder()
+                                    .id(dataStore.getStoryId())
+                                    .userId(dataStore.getUserId())
+                                    .username(user != null ? user.getName() : null)
+                                    .title(dataStore.getTitle() != null ? dataStore.getTitle() : (story != null ? story.getTitle() : "Processing..."))
+                                    .audioUrl(dataStore.getAudioUrl() != null ? dataStore.getAudioUrl() : (story != null ? story.getAudioUrl() : null))
+                                    .thumbnailUrl(story != null ? story.getThumbnailUrl() : null)
+                                    .storyImages(story != null ? story.getStoryImages() : null)
+                                    .viewCount(story != null ? story.getViewCount() : 0L)
+                                    .likeCount(likeCount)
+                                    .commentCount(commentCount)
+                                    .status(storyStatus) // Use status from StoryDataStore
+                                    .language(dataStore.getLanguage())
+                                    .rejectionReasons(story != null ? story.getRejectionReasons() : null)
+                                    .contents(story != null ? story.getContents() : null)
+                                    .tags(story != null ? story.getTags() : null)
+                                    .createdAt(dataStore.getCreatedAt())
+                                    .updatedAt(dataStore.getUpdatedAt())
+                                    .isLikedByMe(likedByMe)
+                                    .isBookmarkedByMe(bookmarkedByMe)
+                                    .creationType(story != null ? story.getCreationType() : Story.CreationType.UPLOADED)
+                                    .build();
+                        } catch (Exception e) {
+                            log.error("Error creating StoryResponse for dataStore {} [RequestID: {}]: {}", 
+                                    dataStore.getStoryId(), requestId, e.getMessage());
+                            return null;
+                        }
+                    })
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            
+            log.info("Returning {} my stories from StoryDataStore for user {} [RequestID: {}]", 
+                    stories.size(), currentUserId, requestId);
+            
+            return PagedResponse.of(stories, page, size, userDataStores.size());
+            
+        } catch (Exception e) {
+            log.error("Error getting my stories from StoryDataStore for user {} [RequestID: {}]: {}", 
+                    currentUserId, requestId, e.getMessage(), e);
+            throw new RuntimeException("Failed to get my stories: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Convert StoryDataStore.ProcessingStatus to Story.StoryStatus
+     */
+    private Story.StoryStatus convertProcessingStatusToStoryStatus(StoryDataStore.ProcessingStatus processingStatus) {
+        if (processingStatus == null) {
+            return Story.StoryStatus.UPLOAD_PENDING;
+        }
+        
+        return switch (processingStatus) {
+            case UPLOAD_PENDING -> Story.StoryStatus.UPLOAD_PENDING;
+            case UPLOADING -> Story.StoryStatus.UPLOADING;
+            case PROCESSING_PENDING -> Story.StoryStatus.PROCESSING_PENDING;
+            case PROCESSING -> Story.StoryStatus.PROCESSING;
+            case PROCESSED -> Story.StoryStatus.PROCESSED;
+            case CONVERTING -> Story.StoryStatus.CONVERTING;
+            case COMPLETED -> Story.StoryStatus.ACTIVE;
+            case FAILED -> Story.StoryStatus.FAILED;
+            case REJECTED -> Story.StoryStatus.REJECTED;
+        };
+    }
     
     /**
      * Get stories by language with user context (includes likedByMe status)

@@ -36,49 +36,7 @@ public class AudioConversionWorker {
     /**
      * Process TTS audio uploads every 7 minutes
      */
-    @Scheduled(fixedRate = 60000) // 7 minutes = 420,000 milliseconds
-    public void processTTSAudioUploads() {
-        String requestId = RequestIdGenerator.generateRequestId();
-        log.info("Starting TTS audio conversion worker (Request ID: {})", requestId);
-        
-        try {
-            // Fetch stories with WRITTEN_UPLOAD_PENDING status, ordered by creation time (oldest first)
-            List<StoryDataStore> pendingStories = storyDataStoreRepository.findByProcessingStatusOrderByCreatedAtAscLimit(
-                StoryDataStore.ProcessingStatus.WRITTEN_UPLOAD_PENDING, 10);
-            
-            if (pendingStories.isEmpty()) {
-                log.info("No stories pending TTS audio upload (Request ID: {})", requestId);
-                return;
-            }
-            
-            log.info("Found {} stories pending TTS audio upload (Request ID: {})", pendingStories.size(), requestId);
-
-            pendingStories.forEach(dataStore-> {
-                        // Mark as PROCESSING immediately after fetching to prevent duplicate processing
-                        dataStore.setProcessingStatus(StoryDataStore.ProcessingStatus.PROCESSING);
-                        storyDataStoreRepository.save(dataStore);
-                        log.info("Marked story {} as PROCESSING before TTS audio upload (Request ID: {})",
-                                dataStore.getId(), requestId);
-                    });
-            // Process each pending story
-            for (StoryDataStore dataStore : pendingStories) {
-                try {
-                    // Process TTS audio upload
-                    processTTSAudioUpload(dataStore, requestId);
-                } catch (Exception e) {
-                    log.error("Error processing TTS audio upload for story {} (Request ID: {}): {}", 
-                            dataStore.getId(), requestId, e.getMessage(), e);
-                    markStoryAsFailed(dataStore, "TTS audio upload failed: " + e.getMessage());
-                }
-            }
-            
-            log.info("TTS audio conversion worker completed (Request ID: {})", requestId);
-            
-        } catch (Exception e) {
-            log.error("Error in TTS audio conversion worker (Request ID: {}): {}", requestId, e.getMessage(), e);
-        }
-    }
-    
+  
     /**
      * Process TTS audio upload for a single story
      */
@@ -105,11 +63,11 @@ public class AudioConversionWorker {
             // Update story data store with audio URL
             dataStore.setAudioUrl(audioUrl);
             
-            // Mark as STORY_CONVERSION_PENDING for final conversion
-            dataStore.setProcessingStatus(StoryDataStore.ProcessingStatus.STORY_CONVERSION_PENDING);
+            // Mark as COMPLETED for final conversion
+            dataStore.setProcessingStatus(StoryDataStore.ProcessingStatus.COMPLETED);
             storyDataStoreRepository.save(dataStore);
             
-            log.info("Story {} marked as STORY_CONVERSION_PENDING after TTS audio upload (Request ID: {})", 
+            log.info("Story {} marked as COMPLETED after TTS audio upload (Request ID: {})", 
                     dataStore.getId(), requestId);
             
         } catch (Exception e) {
@@ -136,14 +94,42 @@ public class AudioConversionWorker {
                 return null;
             }
             
-            // Decode base64 data
+            // Validate base64 string
+            if (!ttsAudioData.matches("^[A-Za-z0-9+/]*={0,2}$")) {
+                log.error("Invalid base64 format for TTS audio data in story: {}", dataStore.getId());
+                return null;
+            }
+            
+            // Log the prefix for analysis (don't remove it yet)
+            if (ttsAudioData.startsWith("//")) {
+                int prefixEnd = ttsAudioData.indexOf("UklGR"); // Common WAV file header in base64
+                if (prefixEnd == -1) {
+                    prefixEnd = ttsAudioData.indexOf("SUQz"); // Common MP3 file header in base64
+                }
+                if (prefixEnd != -1) {
+                    String prefix = ttsAudioData.substring(0, prefixEnd);
+                    log.info("Found audio prefix '{}' for story: {} - length: {} chars", 
+                            prefix, dataStore.getId(), prefix.length());
+                }
+            }
+            
+            // Decode base64 data (keeping prefix for now)
             byte[] audioBytes = java.util.Base64.getDecoder().decode(ttsAudioData);
+            
+            // Validate decoded data
+            if (audioBytes == null || audioBytes.length == 0) {
+                log.error("Decoded TTS audio data is null or empty for story: {}", dataStore.getId());
+                return null;
+            }
             
             log.info("Successfully extracted TTS audio data for story: {} - size: {} bytes", 
                     dataStore.getId(), audioBytes.length);
             
             return audioBytes;
             
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid base64 data for TTS audio in story: {} - {}", dataStore.getId(), e.getMessage());
+            return null;
         } catch (Exception e) {
             log.error("Error extracting TTS audio data for story: {}", dataStore.getId(), e);
             return null;
@@ -157,27 +143,47 @@ public class AudioConversionWorker {
         try {
             log.info("Uploading TTS audio to Cloudinary: {}", fileName);
             
-            // Generate unique public ID
-            String publicId = "breakup/audio/" + UUID.randomUUID().toString();
+            // Validate audio data
+            if (audioData == null || audioData.length == 0) {
+                throw new RuntimeException("Audio data is null or empty");
+            }
             
-            // Upload to Cloudinary
+            // Check minimum size for valid audio (at least 1KB)
+            if (audioData.length < 1024) {
+                log.warn("Audio data size is very small: {} bytes for file: {}", audioData.length, fileName);
+            }
+            
+            // Generate unique public ID with proper extension
+            String basePublicId = "breakup/audio/" + UUID.randomUUID().toString();
+            String publicId = basePublicId + ".mp3"; // Ensure .mp3 extension
+            
+            log.info("Uploading audio data to Cloudinary - size: {} bytes, public_id: {}", audioData.length, publicId);
+            
+            // Upload to Cloudinary with proper audio configuration
             Map<String, Object> uploadResult = cloudinary.uploader().upload(
                     audioData,
                     ObjectUtils.asMap(
                             "public_id", publicId,
                             "resource_type", "video", // Cloudinary treats audio as video
-                            "folder", "breakup/audio",
-                            "format", "mp3"
+                            "format", "mp3",
+                            "overwrite", true,
+                            "invalidate", true
                     )
             );
             
             String audioUrl = (String) uploadResult.get("secure_url");
-            log.info("Successfully uploaded TTS audio to Cloudinary: {}", audioUrl);
+            if (audioUrl == null || audioUrl.isEmpty()) {
+                throw new RuntimeException("Cloudinary upload succeeded but returned null/empty URL");
+            }
+            
+            log.info("Successfully uploaded TTS audio to Cloudinary: {} -> {} (size: {} bytes)", 
+                    fileName, audioUrl, audioData.length);
             
             return audioUrl;
             
         } catch (Exception e) {
-            log.error("Error uploading TTS audio to Cloudinary: {}", e.getMessage());
+            log.error("Error uploading TTS audio to Cloudinary for file {} (size: {} bytes): {}", 
+                    fileName, audioData != null ? audioData.length : 0, e.getMessage());
             throw new RuntimeException("Failed to upload TTS audio to Cloudinary: " + e.getMessage(), e);
         }
     }
