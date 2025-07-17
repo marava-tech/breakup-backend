@@ -186,7 +186,7 @@ public class UploadServiceImpl implements UploadService {
 
                 } else if (contentType.startsWith("audio/")) {
                     uploadOptions.put("resource_type", "video"); // Cloudinary uses 'video' for audio
-                    // Don't force MP3 format - let Cloudinary handle the original format
+                    uploadOptions.put("format", "mp3"); // Force MP3 format for consistency
                     uploadOptions.put("quality", "auto:low"); // Aggressive compression
 
                     // Simplified audio transformation
@@ -198,6 +198,24 @@ public class UploadServiceImpl implements UploadService {
                     // Add better error handling for audio files
                     uploadOptions.put("invalidate", true);
                     uploadOptions.put("overwrite", true);
+
+                } else if (contentType.equals("application/octet-stream") && isAudioFile(originalFilename)) {
+                    // Handle audio files with generic content type
+                    uploadOptions.put("resource_type", "video"); // Cloudinary uses 'video' for audio
+                    uploadOptions.put("format", "mp3"); // Force MP3 format for consistency
+                    uploadOptions.put("quality", "auto:low"); // Aggressive compression
+
+                    // Simplified audio transformation
+                    Transformation audioTransformation = new Transformation()
+                            .quality("auto:low");
+
+                    uploadOptions.put("transformation", audioTransformation);
+                    
+                    // Add better error handling for audio files
+                    uploadOptions.put("invalidate", true);
+                    uploadOptions.put("overwrite", true);
+                    
+                    log.info("Detected audio file with generic content type: {} -> treating as audio", originalFilename);
 
                 } else {
                     uploadOptions.put("resource_type", "raw");
@@ -214,10 +232,18 @@ public class UploadServiceImpl implements UploadService {
                 }
                 // Clean up the base name by replacing invalid characters
                 baseName = baseName.replaceAll("[^a-zA-Z0-9.-]", "_");
-                // Generate UUID without extension (Cloudinary will add the appropriate extension)
+                // Generate UUID
                 String uuid = UUID.randomUUID().toString();
-                // Construct new filename without extension
-                String publicId = baseName + "-" + uuid;
+                
+                // For audio files, ensure .mp3 extension is included
+                String publicId;
+                if ((contentType != null && contentType.startsWith("audio/")) || 
+                    (contentType != null && contentType.equals("application/octet-stream") && isAudioFile(originalFilename))) {
+                    publicId = baseName + "-" + uuid + ".mp3";
+                } else {
+                    // For other files, let Cloudinary add the appropriate extension
+                    publicId = baseName + "-" + uuid;
+                }
                 uploadOptions.put("public_id", publicId);
             }
 
@@ -265,5 +291,24 @@ public class UploadServiceImpl implements UploadService {
             log.error("Error uploading file: {}", file.getOriginalFilename(), e);
             throw new FileUploadException("Error uploading file: " + file.getOriginalFilename(), e);
         }
+    }
+    
+    /**
+     * Check if a file has an audio extension
+     */
+    private boolean isAudioFile(String filename) {
+        if (filename == null) {
+            return false;
+        }
+        
+        String extension = filename.toLowerCase();
+        return extension.endsWith(".mp3") || 
+               extension.endsWith(".wav") || 
+               extension.endsWith(".m4a") || 
+               extension.endsWith(".aac") || 
+               extension.endsWith(".ogg") || 
+               extension.endsWith(".flac") ||
+               extension.endsWith(".wma") ||
+               extension.endsWith(".aiff");
     }
 }

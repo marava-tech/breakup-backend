@@ -34,18 +34,19 @@ public class StoryConversionWorker {
     private final StoryStatusService storyStatusService;
     private final DefaultConfigService defaultConfigService;
     private final FirstStoryRewardService firstStoryRewardService;
+    private final AudioConversionWorker audioConversionWorker;
     
     /**
-     * Process conversions every 5 minutes
+     * Process conversions every 1 minute
      */
-    @Scheduled(fixedRate = 60000) // 1 minutes
+    @Scheduled(fixedRate = 60000) // 1 minute
     public void convertStories() {
         String requestId = RequestIdGenerator.generateRequestId();
         log.info("Starting story conversion worker (Request ID: {})", requestId);
         
         try {
-            // Fetch stories with STORY_CONVERSION_PENDING status, ordered by creation time (oldest first)
-            List<StoryDataStore> pendingStories = storyDataStoreRepository.findByProcessingStatusOrderByCreatedAtAscLimit(StoryDataStore.ProcessingStatus.STORY_CONVERSION_PENDING, 10);
+            // Fetch stories with isConversionPending = true, ordered by creation time (oldest first)
+            List<StoryDataStore> pendingStories = storyDataStoreRepository.findByIsConversionPendingTrueOrderByCreatedAtAscLimit(10);
             
             if (pendingStories.isEmpty()) {
                 log.info("No stories pending conversion (Request ID: {})", requestId);
@@ -54,20 +55,31 @@ public class StoryConversionWorker {
             
             log.info("Found {} stories pending conversion (Request ID: {})", pendingStories.size(), requestId);
             
-            // Process each pending story
+            // First, mark all stories as isConversionPending = false to prevent race conditions
+            List<StoryDataStore> storiesToProcess = new ArrayList<>();
             for (StoryDataStore dataStore : pendingStories) {
                 try {
-                    // Mark as COMPLETED immediately after fetching to prevent duplicate processing
-                    dataStore.setProcessingStatus(StoryDataStore.ProcessingStatus.COMPLETED);
+                    // Mark isConversionPending as false immediately to prevent duplicate processing
+                    dataStore.setConversionPending(false);
                     storyDataStoreRepository.save(dataStore);
-                    log.info("Marked story {} as COMPLETED before processing (Request ID: {})", dataStore.getId(), requestId);
-                    
-                    // Now proceed with conversion
-                    convertStory(dataStore, requestId);
-                    
+                    log.info("Marked story {} isConversionPending as false (Request ID: {})", dataStore.getId(), requestId);
+                    storiesToProcess.add(dataStore);
                 } catch (Exception e) {
-                    log.error("Error converting story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage(), e);
-                    markStoryAsFailed(dataStore, "Conversion failed: " + e.getMessage());
+                    log.error("Error marking story {} isConversionPending as false (Request ID: {}): {}", 
+                            dataStore.getId(), requestId, e.getMessage(), e);
+                }
+            }
+            
+            log.info("Marked {} stories as not pending conversion, now processing them (Request ID: {})", 
+                    storiesToProcess.size(), requestId);
+            
+            // Now process each story based on their status and creation type
+            for (StoryDataStore dataStore : storiesToProcess) {
+                try {
+                    processStoryBasedOnStatus(dataStore, requestId);
+                } catch (Exception e) {
+                    log.error("Error processing story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage(), e);
+                    markStoryAsFailed(dataStore, "Processing failed: " + e.getMessage());
                 }
             }
             
@@ -79,37 +91,194 @@ public class StoryConversionWorker {
     }
     
     /**
+     * Process story based on status and creation type
+     */
+    private void processStoryBasedOnStatus(StoryDataStore dataStore, String requestId) {
+        log.info("Processing story based on status: {} (Request ID: {})", dataStore.getId(), requestId);
+        
+        try {
+            // Check the current processing status
+            StoryDataStore.ProcessingStatus currentStatus = dataStore.getProcessingStatus();
+            
+            // Handle failed or rejected status
+            if (currentStatus == StoryDataStore.ProcessingStatus.FAILED || 
+                currentStatus == StoryDataStore.ProcessingStatus.REJECTED) {
+                
+                processFailedOrRejectedStory(dataStore, requestId);
+                return;
+            }
+            
+            // Handle completed status
+            if (currentStatus == StoryDataStore.ProcessingStatus.COMPLETED) {
+                // Determine creation type from metadata
+                Story.CreationType creationType = getCreationType(dataStore);
+                
+                if (creationType == Story.CreationType.UPLOADED) {
+                    processCompletedUploadedStory(dataStore, requestId);
+                } else if (creationType == Story.CreationType.WRITTEN) {
+                    processCompletedWrittenStory(dataStore, requestId);
+                }
+            } else {
+                log.warn("Story {} has unexpected status: {} (Request ID: {})", 
+                        dataStore.getId(), currentStatus, requestId);
+            }
+            
+        } catch (Exception e) {
+            log.error("Error processing story based on status {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage(), e);
+            markStoryAsFailed(dataStore, "Processing failed: " + e.getMessage());
+            throw e;
+        }
+    }
+    
+    /**
+     * Process failed or rejected stories
+     */
+    private void processFailedOrRejectedStory(StoryDataStore dataStore, String requestId) {
+        log.warn("Processing failed/rejected story: {} (Request ID: {})", dataStore.getId(), requestId);
+        
+        StoryDataStore.ProcessingStatus currentStatus = dataStore.getProcessingStatus();
+        
+        if (currentStatus == StoryDataStore.ProcessingStatus.FAILED) {
+            markStoryAsFailed(dataStore, "Story processing failed");
+        } else if (currentStatus == StoryDataStore.ProcessingStatus.REJECTED) {
+            createRejectedStoryFromDataStore(dataStore, requestId, 
+                "Story rejected: " + (dataStore.getErrors() != null && !dataStore.getErrors().isEmpty() ? 
+                    String.join("\n", dataStore.getErrors()) : "Unknown reason"));
+        }
+    }
+    
+    /**
+     * Process completed uploaded stories
+     */
+    private void processCompletedUploadedStory(StoryDataStore dataStore, String requestId) {
+        log.info("Processing completed uploaded story: {} (Request ID: {})", dataStore.getId(), requestId);
+        
+        // For uploaded stories, proceed with story conversion
+        convertStory(dataStore, requestId);
+    }
+    
+    /**
+     * Process completed written stories
+     */
+    private void processCompletedWrittenStory(StoryDataStore dataStore, String requestId) {
+        log.info("Processing completed written story: {} (Request ID: {})", dataStore.getId(), requestId);
+        
+        try {
+            // Check if TTS audio data exists in metadata
+            if (dataStore.getUploadMetadata() != null && dataStore.getUploadMetadata().get("ttsAudioData") != null) {
+                // TTS audio data exists, upload it to Cloudinary
+                String audioUrl = uploadTTSAudioToCloudinary(dataStore, requestId);
+                dataStore.setAudioUrl(audioUrl);
+                log.info("Successfully uploaded TTS audio for written story: {} - URL: {} (Request ID: {})", 
+                        dataStore.getId(), audioUrl, requestId);
+            } else {
+                // No TTS audio data, use default audio or mark as failed
+                log.warn("No TTS audio data found for written story: {} (Request ID: {})", dataStore.getId(), requestId);
+                dataStore.setAudioUrl(defaultConfigService.getDefaultAudioUrl());
+            }
+            
+            // Proceed with story conversion
+            createStoryFromDataStore(dataStore, requestId);
+            
+            log.info("Successfully converted written story: {} (Request ID: {})", dataStore.getId(), requestId);
+                    
+        } catch (Exception e) {
+            log.error("Error processing written story {} (Request ID: {}): {}", 
+                    dataStore.getId(), requestId, e.getMessage(), e);
+            markStoryAsFailed(dataStore, "Written story conversion failed: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Upload TTS audio to Cloudinary
+     */
+    private String uploadTTSAudioToCloudinary(StoryDataStore dataStore, String requestId) {
+        try {
+            Map<String, String> uploadMetadata = dataStore.getUploadMetadata();
+            if (uploadMetadata == null) {
+                throw new RuntimeException("Upload metadata is null");
+            }
+            
+            String ttsAudioData = uploadMetadata.get("ttsAudioData");
+            if (ttsAudioData == null || ttsAudioData.isEmpty()) {
+                throw new RuntimeException("TTS audio data not found in upload metadata");
+            }
+            
+            // Validate base64 string
+            if (!ttsAudioData.matches("^[A-Za-z0-9+/]*={0,2}$")) {
+                throw new RuntimeException("Invalid base64 format for TTS audio data");
+            }
+            
+            // Log the prefix for analysis (don't remove it yet)
+            if (ttsAudioData.startsWith("//")) {
+                int prefixEnd = ttsAudioData.indexOf("UklGR"); // Common WAV file header in base64
+                if (prefixEnd == -1) {
+                    prefixEnd = ttsAudioData.indexOf("SUQz"); // Common MP3 file header in base64
+                }
+                if (prefixEnd != -1) {
+                    String prefix = ttsAudioData.substring(0, prefixEnd);
+                    log.info("Found audio prefix '{}' for story: {} (Request ID: {}) - length: {} chars", 
+                            prefix, dataStore.getId(), requestId, prefix.length());
+                }
+            }
+            
+            // Decode base64 data (keeping prefix for now)
+            byte[] audioBytes;
+            try {
+                audioBytes = java.util.Base64.getDecoder().decode(ttsAudioData);
+            } catch (IllegalArgumentException e) {
+                throw new RuntimeException("Invalid base64 data for TTS audio: " + e.getMessage());
+            }
+            
+            // Validate decoded data
+            if (audioBytes == null || audioBytes.length == 0) {
+                throw new RuntimeException("Decoded TTS audio data is null or empty");
+            }
+            
+            log.info("Extracted TTS audio data for story: {} - size: {} bytes (Request ID: {})", 
+                    dataStore.getId(), audioBytes.length, requestId);
+            
+            // Use the AudioConversionWorker's upload method
+            String fileName = dataStore.getStoryId() + ".mp3";
+            String audioUrl = audioConversionWorker.uploadAudio(audioBytes, fileName);
+            
+            log.info("Successfully uploaded TTS audio for story: {} - URL: {} (Request ID: {})", 
+                    dataStore.getId(), audioUrl, requestId);
+            
+            return audioUrl;
+            
+        } catch (Exception e) {
+            log.error("Error uploading TTS audio for story {} (Request ID: {}): {}", 
+                    dataStore.getId(), requestId, e.getMessage(), e);
+            throw new RuntimeException("Failed to upload TTS audio: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Get creation type from story data store
+     */
+    private Story.CreationType getCreationType(StoryDataStore dataStore) {
+        Story.CreationType creationType = Story.CreationType.UPLOADED; // Default
+        if (dataStore.getUploadMetadata() != null && dataStore.getUploadMetadata().get("creationType") != null) {
+            String creationTypeStr = dataStore.getUploadMetadata().get("creationType");
+            try {
+                creationType = Story.CreationType.valueOf(creationTypeStr);
+            } catch (IllegalArgumentException e) {
+                log.warn("Invalid creation type in metadata: {}, using default UPLOADED", creationTypeStr);
+            }
+        }
+        return creationType;
+    }
+    
+    /**
      * Convert a single processed story to final Story entity
      */
     private void convertStory(StoryDataStore dataStore, String requestId) {
         log.info("Converting story: {} (Request ID: {})", dataStore.getId(), requestId);
         
         try {
-            // Update status to CONVERTING using StoryStatusService
-            storyStatusService.updateStatusInBothCollections(dataStore.getStoryId(), Story.StoryStatus.CONVERTING);
-            
-            // Check if story is valid based on story analysis
-            if (dataStore.getStoryAnalysisResponse() != null && 
-                dataStore.getStoryAnalysisResponse().getAnalysis() != null &&
-                !dataStore.getStoryAnalysisResponse().getAnalysis().isValidStory()) {
-                
-                log.warn("Story {} marked as invalid by AI analysis - not a love/breakup related story (Request ID: {})", 
-                        dataStore.getId(), requestId);
-                
-                // Create rejected story with proper rejection reason
-                createRejectedStoryFromDataStore(dataStore, requestId, 
-                    "Story rejected: Not a love or breakup related story. The content does not meet our platform's criteria for relationship-focused narratives.");
-                
-                // Update status to REJECTED using StoryStatusService
-                storyStatusService.updateStatusInBothCollections(dataStore.getStoryId(), Story.StoryStatus.REJECTED);
-                
-            } else {
-                // Story is valid, proceed with normal conversion
-                createStoryFromDataStore(dataStore, requestId);
-                
-                // Update status to COMPLETED using StoryStatusService
-                storyStatusService.updateStatusInBothCollections(dataStore.getStoryId(), Story.StoryStatus.ACTIVE);
-            }
+            // Proceed with story conversion
+            createStoryFromDataStore(dataStore, requestId);
             
         } catch (Exception e) {
             log.error("Error converting story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage(), e);
@@ -119,10 +288,10 @@ public class StoryConversionWorker {
     }
     
     /**
-     * Create Story entity from StoryDataStore
+     * Create or update Story entity from StoryDataStore
      */
     private void createStoryFromDataStore(StoryDataStore dataStore, String requestId) {
-        log.info("Creating Story from StoryDataStore for story: {} (Request ID: {})", dataStore.getId(), requestId);
+        log.info("Creating/Updating Story from StoryDataStore for story: {} (Request ID: {})", dataStore.getId(), requestId);
         
         try {
             // Build rejection reasons from all error fields
@@ -130,10 +299,8 @@ public class StoryConversionWorker {
             
             // Add general errors
             if (dataStore.getErrors() != null && !dataStore.getErrors().isEmpty()) {
-                rejectionReasons.append("General errors: ").append(String.join(", ", dataStore.getErrors())).append("; ");
+                rejectionReasons.append("General errors: ").append(String.join("\n", dataStore.getErrors()));
             }
-            
-
             
             // Add step errors from map
             if (dataStore.getStepErrors() != null && !dataStore.getStepErrors().isEmpty()) {
@@ -152,27 +319,44 @@ public class StoryConversionWorker {
                 }
             }
             
-            // Create Story entity
-            Story story = Story.builder()
-                    .id(dataStore.getStoryId())
-                    .userId(dataStore.getUserId())
-                    .title(dataStore.getTitle())
-                    .contents(extractContentsFromDataStore(dataStore))
-                    .tags(extractTagsFromDataStore(dataStore))
-                    .emotions(extractEmotionsFromDataStore(dataStore))
-                    .language(dataStore.getLanguage())
-                    .audioUrl(dataStore.getAudioUrl())
-                    .thumbnailUrl(extractThumbnailUrl(dataStore))
-                    .storyImages(extractStoryImages(dataStore))
-                    .duration(dataStore.getDuration())
-                    .rejectionReasons(!rejectionReasons.isEmpty() ? List.of(rejectionReasons.toString()) : null)
-                    .status(Story.StoryStatus.ACTIVE) // All converted stories are active
-                    .creationType(creationType)
-                    .createdAt(dataStore.getCreatedAt())
-                    .updatedAt(TimestampUtil.currentLocalDateTime())
-                    .build();
+            // Check if Story already exists
+            Story existingStory = storyRepository.findById(dataStore.getStoryId()).orElse(null);
+            Story story;
             
-              storyRepository.save(story);
+            if (existingStory != null) {
+                log.info("Story already exists, updating with StoryDataStore data: {} (Request ID: {})", dataStore.getStoryId(), requestId);
+                
+                // Update existing story with data from StoryDataStore (overwrite if data exists)
+                story = updateExistingStoryWithDataStore(existingStory, dataStore, creationType, rejectionReasons);
+            } else {
+                log.info("Creating new Story from StoryDataStore: {} (Request ID: {})", dataStore.getStoryId(), requestId);
+                
+                // Create new story
+                story = Story.builder()
+                        .id(dataStore.getStoryId())
+                        .userId(dataStore.getUserId())
+                        .title(dataStore.getTitle())
+                        .contents(extractContentsFromDataStore(dataStore))
+                        .tags(extractTagsFromDataStore(dataStore))
+                        .emotions(extractEmotionsFromDataStore(dataStore))
+                        .language(dataStore.getLanguage())
+                        .audioUrl(dataStore.getAudioUrl())
+                        .thumbnailUrl(extractThumbnailUrl(dataStore))
+                        .storyImages(extractStoryImages(dataStore))
+                        .duration(dataStore.getDuration())
+                        .rejectionReasons(!rejectionReasons.isEmpty() ? List.of(rejectionReasons.toString()) : null)
+                        .status(Story.StoryStatus.ACTIVE) // All converted stories are active
+                        .creationType(creationType)
+                        .createdAt(dataStore.getCreatedAt())
+                        .updatedAt(TimestampUtil.currentLocalDateTime())
+                        .build();
+            }
+            
+            storyRepository.save(story);
+            
+            // Set isConversionPending to false for successful conversions
+            dataStore.setConversionPending(false);
+            storyDataStoreRepository.save(dataStore);
             
             // Check for first story reward
             boolean rewardGiven = firstStoryRewardService.checkAndRewardFirstStory(dataStore.getUserId(), dataStore.getStoryId());
@@ -180,12 +364,83 @@ public class StoryConversionWorker {
                 log.info("First story reward check completed for story: {} (Request ID: {})", dataStore.getId(), requestId);
             }
             
-            log.info("Successfully created Story from StoryDataStore for story: {} (Request ID: {})", dataStore.getId(), requestId);
+            log.info("Successfully created/updated Story from StoryDataStore for story: {} (Request ID: {})", dataStore.getId(), requestId);
 
         } catch (Exception e) {
-            log.error("Error creating Story from StoryDataStore for story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage(), e);
-            throw new RuntimeException("Failed to create Story from StoryDataStore: " + e.getMessage(), e);
+            log.error("Error creating/updating Story from StoryDataStore for story {} (Request ID: {}): {}", dataStore.getId(), requestId, e.getMessage(), e);
+            throw new RuntimeException("Failed to create/update Story from StoryDataStore: " + e.getMessage(), e);
         }
+    }
+    
+    /**
+     * Update existing story with data from StoryDataStore (overwrite if data exists)
+     */
+    private Story updateExistingStoryWithDataStore(Story existingStory, StoryDataStore dataStore, 
+                                                   Story.CreationType creationType, StringBuilder rejectionReasons) {
+        log.info("Updating existing story with StoryDataStore data: {} (Request ID: {})", dataStore.getStoryId(), dataStore.getId());
+        
+        // Extract data from StoryDataStore
+        List<com.breakupstories.model.Content> contents = extractContentsFromDataStore(dataStore);
+        List<String> tags = extractTagsFromDataStore(dataStore);
+        List<com.breakupstories.model.Emotion> emotions = extractEmotionsFromDataStore(dataStore);
+        String thumbnailUrl = extractThumbnailUrl(dataStore);
+        List<String> storyImages = extractStoryImages(dataStore);
+        
+        // Update existing story - overwrite with StoryDataStore data if it exists
+        if (dataStore.getTitle() != null && !dataStore.getTitle().trim().isEmpty()) {
+            existingStory.setTitle(dataStore.getTitle());
+        }
+        
+        if (!contents.isEmpty()) {
+            existingStory.setContents(contents);
+        }
+        
+        if (!tags.isEmpty()) {
+            existingStory.setTags(tags);
+        }
+        
+        if (!emotions.isEmpty()) {
+            existingStory.setEmotions(emotions);
+        }
+        
+        if (dataStore.getLanguage() != null && !dataStore.getLanguage().trim().isEmpty()) {
+            existingStory.setLanguage(dataStore.getLanguage());
+        }
+        
+        if (dataStore.getAudioUrl() != null && !dataStore.getAudioUrl().trim().isEmpty()) {
+            existingStory.setAudioUrl(dataStore.getAudioUrl());
+        }
+        
+        if (thumbnailUrl != null && !thumbnailUrl.trim().isEmpty()) {
+            existingStory.setThumbnailUrl(thumbnailUrl);
+        }
+        
+        if (!storyImages.isEmpty()) {
+            existingStory.setStoryImages(storyImages);
+        }
+        
+        if (dataStore.getDuration() != null) {
+            existingStory.setDuration(dataStore.getDuration());
+        }
+        
+        // Update rejection reasons if any
+        if (!rejectionReasons.isEmpty()) {
+            existingStory.setRejectionReasons(List.of(rejectionReasons.toString()));
+        }
+        
+        // Update status to ACTIVE
+        existingStory.setStatus(Story.StoryStatus.ACTIVE);
+        
+        // Update creation type
+        existingStory.setCreationType(creationType);
+        
+        // Update timestamp
+        existingStory.setUpdatedAt(TimestampUtil.currentLocalDateTime());
+        
+        log.info("Successfully updated existing story with StoryDataStore data: {} (Request ID: {})", 
+                dataStore.getStoryId(), dataStore.getId());
+        
+        return existingStory;
     }
     
     /**
@@ -342,13 +597,11 @@ public class StoryConversionWorker {
         log.error("Marking story as failed: {} - {}", dataStore.getId(), errorMessage);
         
         try {
-            // Update the StoryDataStore status to FAILED
+            // Update the StoryDataStore status to FAILED and set isConversionPending to false
             dataStore.setProcessingStatus(StoryDataStore.ProcessingStatus.FAILED);
             dataStore.setErrorMessage(errorMessage);
+            dataStore.setConversionPending(false);
             storyDataStoreRepository.save(dataStore);
-            
-            // Use StoryStatusService to mark story as failed in both collections
-            storyStatusService.markStoryAsFailed(dataStore.getStoryId(), errorMessage);
             
             log.info("Story marked as failed: {}", dataStore.getId());
             
@@ -376,7 +629,7 @@ public class StoryConversionWorker {
             
             // Add general errors
             if (dataStore.getErrors() != null && !dataStore.getErrors().isEmpty()) {
-                rejectionReasons.append("General errors: ").append(String.join(", ", dataStore.getErrors())).append("; ");
+                rejectionReasons.append("General errors: ").append(String.join("\n", dataStore.getErrors())).append("; ");
             }
             
             // Add step-specific errors
@@ -403,6 +656,10 @@ public class StoryConversionWorker {
             
             // Save the Story entity
             Story savedStory = storyRepository.save(story);
+            
+            // Set isConversionPending to false for rejected stories
+            dataStore.setConversionPending(false);
+            storyDataStoreRepository.save(dataStore);
             
             log.info("Successfully created rejected Story from StoryDataStore for story: {} (Request ID: {})", dataStore.getId(), requestId);
             

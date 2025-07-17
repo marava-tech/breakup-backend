@@ -261,6 +261,24 @@ public class DefaultConfigService {
     }
 
     /**
+     * Get default audio URL from configuration
+     *
+     * @return Default audio URL
+     */
+    public String getDefaultAudioUrl() {
+        try {
+            DefaultConfig config = defaultConfigRepository.findByKey("default_audio_url")
+                    .orElseThrow(() -> new RuntimeException("Default audio URL configuration not found"));
+
+            return config.getValue();
+        } catch (Exception e) {
+            // Return a fallback URL if configuration is not found
+            log.warn("Default audio URL not found in configuration, using fallback URL", e);
+            return "";
+        }
+    }
+
+    /**
      * Get default story images from configuration
      *
      * @return List of default story image URLs
