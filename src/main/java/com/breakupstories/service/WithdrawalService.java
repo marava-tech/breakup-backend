@@ -191,6 +191,9 @@ public class WithdrawalService {
         boolean pauseWithdrawals = getPauseWithdrawals();
         String pauseWithdrawalsReason = getPauseWithdrawalsReason();
         
+        // Get withdrawal conditions from config
+        String withdrawalConditions = getWithdrawalConditions();
+        
         List<WithdrawalOptionResponse> options = Stream.of(amounts)
                 .map(amount -> {
                     // Calculate coins needed for this amount
@@ -209,7 +212,7 @@ public class WithdrawalService {
                 })
                 .collect(Collectors.toList());
         
-        return WithdrawalOptionsResponse.of(options, defaultProcessingTime, pauseWithdrawals, pauseWithdrawalsReason);
+        return WithdrawalOptionsResponse.of(options, defaultProcessingTime, pauseWithdrawals, pauseWithdrawalsReason, withdrawalConditions);
     }
     
     /**
@@ -259,6 +262,18 @@ public class WithdrawalService {
         } catch (Exception e) {
             // Fallback to default reason if config not found
             return "Withdrawals are temporarily paused";
+        }
+    }
+
+    /**
+     * Get withdrawal conditions from config
+     */
+    private String getWithdrawalConditions() {
+        try {
+            return defaultConfigService.getByKey("withdrawal_conditions").getValue();
+        } catch (Exception e) {
+            // Fallback to default conditions if config not found
+            return "No specific conditions for withdrawal.";
         }
     }
 } 
