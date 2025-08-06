@@ -8,6 +8,7 @@ import com.breakupstories.dto.CommentResponse;
 import com.breakupstories.dto.StorySearchRequest;
 import com.breakupstories.dto.StorySearchResponse;
 import com.breakupstories.dto.StoryWithTrendingScore;
+import com.breakupstories.dto.WithdrawalEligibilityResponse;
 
 import com.breakupstories.model.Story;
 import com.breakupstories.model.StoryDataStore;
@@ -1695,6 +1696,45 @@ public class StoryService {
             log.error("Error getting trending stories by language {} for user {} [RequestID: {}]: {}", 
                     language, currentUserId, requestId, e.getMessage(), e);
             throw new RuntimeException("Failed to get trending stories by language: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Check if a user has an active story with UPLOADED creation type
+     * This is used to determine withdrawal eligibility
+     * @param userId The user ID to check
+     * @return WithdrawalEligibilityResponse with eligibility status
+     */
+    public WithdrawalEligibilityResponse checkWithdrawalEligibility(String userId) {
+        String requestId = RequestContext.getRequestId();
+        log.info("Checking withdrawal eligibility for user: {} [RequestID: {}]", userId, requestId);
+        
+        try {
+            boolean hasUploadedActiveStory = storyRepository.existsByUserIdAndStatusAndCreationType(
+                userId, 
+                Story.StoryStatus.ACTIVE, 
+                Story.CreationType.UPLOADED
+            );
+            
+            String message = hasUploadedActiveStory 
+                ? "User has uploaded an active story and is eligible for withdrawal"
+                : "no active uploaded stories so not eligible for withdrawal";
+            
+            WithdrawalEligibilityResponse response = WithdrawalEligibilityResponse.builder()
+                    .userId(userId)
+                    .hasUploadedActiveStory(hasUploadedActiveStory)
+                    .message(message)
+                    .build();
+            
+            log.info("Withdrawal eligibility check completed for user: {} - Eligible: {} [RequestID: {}]", 
+                    userId, hasUploadedActiveStory, requestId);
+            
+            return response;
+            
+        } catch (Exception e) {
+            log.error("Error checking withdrawal eligibility for user {} [RequestID: {}]: {}", 
+                    userId, requestId, e.getMessage(), e);
+            throw new RuntimeException("Failed to check withdrawal eligibility: " + e.getMessage(), e);
         }
     }
 } 

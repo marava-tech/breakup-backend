@@ -152,4 +152,7 @@ public interface StoryRepository extends MongoRepository<Story, String> {
     // Find latest non-failed/non-rejected story for user
     @Query(value = "{'userId': ?0, 'status': {$nin: ['FAILED', 'REJECTED']}}", sort = "{'createdAt': -1}")
     List<Story> findLatestNonFailedStoryByUserId(String userId);
+    
+    // Check if user has an active story with UPLOADED creation type
+    boolean existsByUserIdAndStatusAndCreationType(String userId, Story.StoryStatus status, Story.CreationType creationType);
 } 

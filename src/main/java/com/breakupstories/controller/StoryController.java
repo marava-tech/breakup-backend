@@ -5,6 +5,7 @@ import com.breakupstories.dto.PagedResponse;
 import com.breakupstories.dto.RequestIdResponse;
 import com.breakupstories.dto.StoryResponse;
 import com.breakupstories.dto.WrittenStoryRequest;
+import com.breakupstories.dto.WithdrawalEligibilityResponse;
 import com.breakupstories.enums.StorySearchType;
 import com.breakupstories.model.Story;
 import com.breakupstories.model.User;
@@ -481,5 +482,20 @@ public class StoryController {
             
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
+    }
+    
+    @GetMapping("/withdrawal-eligibility")
+    @Operation(summary = "Check withdrawal eligibility", description = "Check if user has uploaded an active story and is eligible for coin withdrawal")
+    public ResponseEntity<WithdrawalEligibilityResponse> checkWithdrawalEligibility(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new RuntimeException("login required");
+        }
+        
+        String email = authentication.getName();
+        User user = userService.getUserEntityByEmail(email);
+        String userId = user.getId();
+        
+        WithdrawalEligibilityResponse response = storyService.checkWithdrawalEligibility(userId);
+        return ResponseEntity.ok(response);
     }
 } 
