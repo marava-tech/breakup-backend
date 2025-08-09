@@ -2,10 +2,9 @@ package com.breakupstories.service;
 
 import com.breakupstories.model.Story;
 import com.breakupstories.model.StoryDataStore;
-import com.breakupstories.model.User;
+
 import com.breakupstories.repository.StoryDataStoreRepository;
-import com.breakupstories.repository.StoryRepository;
-import com.breakupstories.repository.UserRepository;
+
 import com.breakupstories.util.RequestIdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

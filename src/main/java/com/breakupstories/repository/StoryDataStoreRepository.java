@@ -1,6 +1,6 @@
 package com.breakupstories.repository;
 
-import com.breakupstories.model.Story;
+
 import com.breakupstories.model.StoryDataStore;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

@@ -21,9 +21,8 @@ The Story Creation Configuration API provides a centralized way to retrieve all 
 ```json
 {
   "configs": {
-    "app_config_max_story_duration_minutes": 10,
-    "app_config_max_written_story_length_characters": 1000,
-    "app_config_user_story_creation_limit_per_day": 3,
+    "app_config_max_story_duration_minutes": 25,
+    "app_config_max_written_story_length_characters": 3000,
     "app_config_audio_upload_enabled": true,
     "app_config_written_story_enabled": true,
     "app_config_auto_transcription_enabled": true,
@@ -32,12 +31,11 @@ The Story Creation Configuration API provides a centralized way to retrieve all 
     "app_config_max_story_title_length": 100,
     "app_config_require_location": false,
     "user_story_creation_enabled": true,
-    "user_daily_story_limit": 3,
+    "user_total_story_limit": 2,
     "user_current_story_count": 1,
-    "user_remaining_stories": 2,
-    "user_next_eligibility_time": null
+    "user_remaining_stories": 1
   },
-  "totalConfigs": 15,
+  "totalConfigs": 13,
   "message": "Story creation configuration retrieved successfully"
 }
 ```
@@ -57,9 +55,8 @@ The Story Creation Configuration API provides a centralized way to retrieve all 
 ```json
 {
   "configs": {
-    "app_config_max_story_duration_minutes": 10,
-    "app_config_max_written_story_length_characters": 1000,
-    "app_config_user_story_creation_limit_per_day": 3,
+    "app_config_max_story_duration_minutes": 25,
+    "app_config_max_written_story_length_characters": 3000,
     "app_config_audio_upload_enabled": true,
     "app_config_written_story_enabled": true,
     "app_config_auto_transcription_enabled": true,
@@ -68,7 +65,7 @@ The Story Creation Configuration API provides a centralized way to retrieve all 
     "app_config_max_story_title_length": 100,
     "app_config_require_location": false
   },
-  "totalConfigs": 10,
+  "totalConfigs": 9,
   "message": "Story creation configuration retrieved successfully"
 }
 ```
@@ -151,60 +148,45 @@ private Map<String, Object> getEligibilityInfo(String userId) {
     Map<String, Object> eligibilityInfo = new HashMap<>();
     
     try {
-        // Get daily limit from configuration
-        DefaultConfig dailyLimitConfig = defaultConfigRepository.findByKey("app_config_user_story_creation_limit_per_day")
+        // Get total story limit from configuration
+        DefaultConfig totalLimitConfig = defaultConfigRepository.findByKey("user_story_limit")
                 .orElse(null);
         
-        int dailyLimit = 1; // Default limit if config not found
-        if (dailyLimitConfig != null && dailyLimitConfig.isActive()) {
+        int totalLimit = 2; // Default limit if config not found
+        if (totalLimitConfig != null && totalLimitConfig.isActive()) {
             try {
-                dailyLimit = Integer.parseInt(dailyLimitConfig.getValue());
+                totalLimit = Integer.parseInt(totalLimitConfig.getValue());
             } catch (NumberFormatException e) {
-                log.warn("Invalid daily limit value in config: {}. Using default value: 1", dailyLimitConfig.getValue());
+                log.warn("Invalid total story limit value in config: {}. Using default value: 2", totalLimitConfig.getValue());
             }
         } else {
-            log.warn("Daily limit configuration not found or inactive. Using default value: 1");
+            log.warn("Total story limit configuration not found or inactive. Using default value: 2");
         }
         
-        // Calculate 24 hours ago
-        LocalDateTime twentyFourHoursAgo = LocalDateTime.now().minusHours(24);
-        
-        // Count user stories in last 24 hours (excluding FAILED and REJECTED)
-        long storyCount = storyRepository.countByUserIdAndStatusNotInAndCreatedAtAfter(userId, twentyFourHoursAgo);
+        // Count all user stories (excluding FAILED and REJECTED)
+        long totalStoryCount = storyRepository.countByUserIdAndStatusNotIn(userId);
         
         // Check eligibility
-        boolean isEligible = storyCount < dailyLimit;
-        int remainingStories = Math.max(0, dailyLimit - (int) storyCount);
-        
-        // Calculate next eligibility time if user has reached the limit
-        LocalDateTime nextEligibilityTime = null;
-        if (!isEligible && storyCount > 0) {
-            // Find the latest non-failed/non-rejected story to calculate when 24 hours will pass
-            List<Story> latestStories = storyRepository.findLatestNonFailedStoryByUserId(userId);
-            if (!latestStories.isEmpty()) {
-                Story latestStory = latestStories.get(0);
-                nextEligibilityTime = latestStory.getCreatedAt().plusHours(24);
-            }
-        }
+        boolean isEligible = totalStoryCount < totalLimit;
+        int remainingStories = Math.max(0, totalLimit - (int) totalStoryCount);
         
         // Add eligibility information to config map
         eligibilityInfo.put("user_story_creation_enabled", isEligible);
-        eligibilityInfo.put("user_daily_story_limit", dailyLimit);
-        eligibilityInfo.put("user_current_story_count", (int) storyCount);
+        eligibilityInfo.put("user_total_story_limit", totalLimit);
+        eligibilityInfo.put("user_current_story_count", (int) totalStoryCount);
         eligibilityInfo.put("user_remaining_stories", remainingStories);
-        eligibilityInfo.put("user_next_eligibility_time", nextEligibilityTime);
+
         
-        log.info("Eligibility info for user {}: enabled={}, limit={}, count={}, remaining={}, nextEligibility={}", 
-                userId, isEligible, dailyLimit, storyCount, remainingStories, nextEligibilityTime);
+        log.info("Eligibility info for user {}: enabled={}, totalLimit={}, totalCount={}, remaining={}", 
+                userId, isEligible, totalLimit, totalStoryCount, remainingStories);
                 
     } catch (Exception e) {
         log.error("Error getting eligibility info for user {}: {}", userId, e.getMessage(), e);
         // Add default eligibility info on error
         eligibilityInfo.put("user_story_creation_enabled", false);
-        eligibilityInfo.put("user_daily_story_limit", 1);
+        eligibilityInfo.put("user_total_story_limit", 2);
         eligibilityInfo.put("user_current_story_count", 0);
         eligibilityInfo.put("user_remaining_stories", 0);
-        eligibilityInfo.put("user_next_eligibility_time", null);
     }
     
     return eligibilityInfo;
@@ -430,47 +412,30 @@ function applyStoryCreationConfig(configs) {
     
     // Get user eligibility information
     const userStoryCreationEnabled = configs['user_story_creation_enabled'] || false;
-    const userDailyLimit = configs['user_daily_story_limit'] || 1;
+    const userTotalLimit = configs['user_total_story_limit'] || 2;
     const userCurrentCount = configs['user_current_story_count'] || 0;
     const userRemainingStories = configs['user_remaining_stories'] || 0;
-    const userNextEligibilityTime = configs['user_next_eligibility_time'];
     
     // Update UI elements
     updateAudioUploadLimits(maxDuration, maxFileSize, minDuration);
     updateWrittenStoryLimits(maxCharacters, maxTitleLength);
     updateFeatureFlags(audioUploadEnabled, writtenStoryEnabled, requireLocation);
-    updateUserEligibility(userStoryCreationEnabled, userDailyLimit, userCurrentCount, userRemainingStories, userNextEligibilityTime);
+    updateUserEligibility(userStoryCreationEnabled, userTotalLimit, userCurrentCount, userRemainingStories);
 }
 
 // Update user eligibility UI
-function updateUserEligibility(enabled, dailyLimit, currentCount, remainingStories, nextEligibilityTime) {
+function updateUserEligibility(enabled, totalLimit, currentCount, remainingStories) {
     const createStoryButton = document.getElementById('create-story-btn');
     const eligibilityMessage = document.getElementById('eligibility-message');
-    const nextEligibilityElement = document.getElementById('next-eligibility-time');
     
     if (enabled) {
         createStoryButton.disabled = false;
-        eligibilityMessage.textContent = `You can create ${remainingStories} more stories today (${currentCount}/${dailyLimit})`;
+        eligibilityMessage.textContent = `You can create ${remainingStories} more stories (${currentCount}/${totalLimit})`;
         eligibilityMessage.className = 'text-success';
-        nextEligibilityElement.style.display = 'none';
     } else {
         createStoryButton.disabled = true;
-        eligibilityMessage.textContent = `Daily story creation limit reached (${currentCount}/${dailyLimit})`;
+        eligibilityMessage.textContent = `Story creation limit reached (${currentCount}/${totalLimit})`;
         eligibilityMessage.className = 'text-danger';
-        
-        // Show next eligibility time if available
-        if (nextEligibilityTime) {
-            const nextTime = new Date(nextEligibilityTime);
-            const now = new Date();
-            const timeDiff = nextTime - now;
-            const hours = Math.floor(timeDiff / (1000 * 60 * 60));
-            const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
-            
-            nextEligibilityElement.style.display = 'block';
-            nextEligibilityElement.textContent = `You can create stories again in ${hours}h ${minutes}m`;
-        } else {
-            nextEligibilityElement.style.display = 'none';
-        }
     }
 }
 

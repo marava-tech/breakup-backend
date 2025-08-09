@@ -16,7 +16,7 @@ import com.breakupstories.model.StoryMetadata;
 import com.breakupstories.model.User;
 import com.breakupstories.repository.StoryRepository;
 import com.breakupstories.repository.StoryDataStoreRepository;
-import com.breakupstories.repository.UserRepository;
+
 import com.breakupstories.util.ApplicationContextProvider;
 import com.breakupstories.util.RequestContext;
 import com.breakupstories.util.ListUtils;
@@ -45,7 +45,6 @@ public class StoryService {
     
     private final StoryRepository storyRepository;
     private final StoryDataStoreRepository storyDataStoreRepository;
-    private final UserRepository userRepository;
     private final LikeService likeService;
     private final CommentService commentService;
     @Lazy
@@ -61,6 +60,9 @@ public class StoryService {
         log.info("Creating story for user: {} [RequestID: {}]", userId, requestId);
         
         try {
+            // Step 0: Check story creation eligibility
+            defaultConfigService.checkStoryCreationEligibility(userId);
+            
             // Step 1: Validate audio file
             MultipartFile audioFile = request.getFile("audio");
             if (audioFile == null || audioFile.isEmpty()) {
@@ -154,6 +156,9 @@ public class StoryService {
         log.info("Creating written story for user: {} [RequestID: {}]", userId, requestId);
         
         try {
+            // Step 0: Check story creation eligibility
+            defaultConfigService.checkStoryCreationEligibility(userId);
+            
             // Step 1: Validate request
             if (request.getStoryText() == null || request.getStoryText().trim().isEmpty()) {
                 throw new IllegalArgumentException("Story text is required");

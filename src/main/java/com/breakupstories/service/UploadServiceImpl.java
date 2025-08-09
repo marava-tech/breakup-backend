@@ -1,24 +1,24 @@
 package com.breakupstories.service;
 
 import com.breakupstories.exception.FileUploadException;
-import com.breakupstories.service.UploadService;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 import com.cloudinary.Cloudinary;
-import com.cloudinary.utils.ObjectUtils;
+
 import com.cloudinary.Transformation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
-import java.io.IOException;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
+
 import jakarta.annotation.PreDestroy;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -226,23 +226,33 @@ public class UploadServiceImpl implements UploadService {
             if (originalFilename != null) {
                 // Split filename into base and extension
                 String baseName = originalFilename;
+                String fileExtension = "";
                 int lastDotIndex = originalFilename.lastIndexOf('.');
                 if (lastDotIndex > 0 && lastDotIndex < originalFilename.length() - 1) {
                     baseName = originalFilename.substring(0, lastDotIndex);
+                    fileExtension = originalFilename.substring(lastDotIndex); // Include the dot
                 }
                 // Clean up the base name by replacing invalid characters
                 baseName = baseName.replaceAll("[^a-zA-Z0-9.-]", "_");
                 // Generate UUID
                 String uuid = UUID.randomUUID().toString();
                 
-                // For audio files, ensure .mp3 extension is included
+                // Include extension in public_id for proper URL generation
                 String publicId;
                 if ((contentType != null && contentType.startsWith("audio/")) || 
                     (contentType != null && contentType.equals("application/octet-stream") && isAudioFile(originalFilename))) {
+                    // For audio files, force .mp3 extension
                     publicId = baseName + "-" + uuid + ".mp3";
+                } else if (contentType != null && contentType.startsWith("image/")) {
+                    // For image files, include the original extension or determine from content type
+                    if (fileExtension.isEmpty()) {
+                        // If no extension in filename, determine from content type
+                        fileExtension = getExtensionFromContentType(contentType);
+                    }
+                    publicId = baseName + "-" + uuid + fileExtension;
                 } else {
-                    // For other files, let Cloudinary add the appropriate extension
-                    publicId = baseName + "-" + uuid;
+                    // For other files, include extension if available
+                    publicId = baseName + "-" + uuid + fileExtension;
                 }
                 uploadOptions.put("public_id", publicId);
             }
@@ -310,5 +320,63 @@ public class UploadServiceImpl implements UploadService {
                extension.endsWith(".flac") ||
                extension.endsWith(".wma") ||
                extension.endsWith(".aiff");
+    }
+    
+    /**
+     * Get file extension from content type
+     */
+    private String getExtensionFromContentType(String contentType) {
+        if (contentType == null) {
+            return "";
+        }
+        
+        switch (contentType.toLowerCase()) {
+            // Image types
+            case "image/jpeg":
+            case "image/jpg":
+                return ".jpg";
+            case "image/png":
+                return ".png";
+            case "image/gif":
+                return ".gif";
+            case "image/webp":
+                return ".webp";
+            case "image/bmp":
+                return ".bmp";
+            case "image/tiff":
+                return ".tiff";
+            case "image/svg+xml":
+                return ".svg";
+            
+            // Audio types
+            case "audio/mpeg":
+            case "audio/mp3":
+                return ".mp3";
+            case "audio/wav":
+                return ".wav";
+            case "audio/ogg":
+                return ".ogg";
+            case "audio/aac":
+                return ".aac";
+            case "audio/m4a":
+                return ".m4a";
+            
+            // Video types
+            case "video/mp4":
+                return ".mp4";
+            case "video/webm":
+                return ".webm";
+            case "video/avi":
+                return ".avi";
+            
+            // Document types
+            case "application/pdf":
+                return ".pdf";
+            case "text/plain":
+                return ".txt";
+            
+            default:
+                return "";
+        }
     }
 }

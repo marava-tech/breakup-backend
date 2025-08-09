@@ -5,7 +5,7 @@ import com.breakupstories.dto.DefaultConfigRequest;
 import com.breakupstories.dto.DefaultConfigResponse;
 import com.breakupstories.dto.PagedResponse;
 import com.breakupstories.dto.StoryCreationConfigResponse;
-import com.breakupstories.dto.StoryCreationEligibilityResponse;
+import com.breakupstories.dto.UserConfigResponse;
 import com.breakupstories.service.DefaultConfigService;
 import com.breakupstories.service.UploadService;
 import com.breakupstories.service.UserService;
@@ -158,7 +158,49 @@ public class DefaultConfigController {
         }
     }
 
+    @GetMapping("/app-configs")
+    @Operation(summary = "Get app-level configurations", 
+               description = "Get all app-level configuration settings including app_config_ prefixed configs and other app-level settings")
+    public ResponseEntity<AppConfigResponse> getAppConfigs() {
+        try {
+            AppConfigResponse response = defaultConfigService.getAppConfigs();
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error retrieving app configurations: {}", e.getMessage(), e);
+            AppConfigResponse errorResponse = AppConfigResponse.builder()
+                    .configs(Map.of())
+                    .totalConfigs(0)
+                    .message("Error retrieving app configurations: " + e.getMessage())
+                    .build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
 
+    @GetMapping("/user-configs")
+    @Operation(summary = "Get user-specific configurations", 
+               description = "Get user-specific configuration settings and eligibility information for authenticated user")
+    public ResponseEntity<UserConfigResponse> getUserConfigs(Authentication authentication) {
+        try {
+            String userId = null;
+            
+            // Get user ID if authenticated
+            if (authentication != null && authentication.isAuthenticated()) {
+                String email = authentication.getName();
+                userId = userService.getUserEntityByEmail(email).getId();
+            }
+            
+            UserConfigResponse response = defaultConfigService.getUserConfigs(userId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error retrieving user configurations: {}", e.getMessage(), e);
+            UserConfigResponse errorResponse = UserConfigResponse.builder()
+                    .configs(Map.of())
+                    .totalConfigs(0)
+                    .message("Error retrieving user configurations: " + e.getMessage())
+                    .build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
 
     @PostMapping("/upload")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")

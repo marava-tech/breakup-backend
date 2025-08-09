@@ -31,7 +31,6 @@ public class User {
     private String preferredStoryLanguage;
     private String referralCode;
     private String referredBy;
-    private int coinBalance;
     private String deviceId; // Android device ID for referral tracking
     
     @Builder.Default
