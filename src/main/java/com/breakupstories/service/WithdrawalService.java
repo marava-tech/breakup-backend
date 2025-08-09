@@ -34,6 +34,7 @@ public class WithdrawalService {
     private final UserRepository userRepository;
     private final CoinHistoryRepository coinHistoryRepository;
     private final DefaultConfigService defaultConfigService;
+    private final RewardService rewardService;
     
     @Transactional
     public WithdrawalResponse createWithdrawal(String userId, WithdrawalRequest request) {
@@ -45,9 +46,10 @@ public class WithdrawalService {
             throw new RuntimeException("User account is not active. Cannot create withdrawal.");
         }
         
-        // Check if user has enough coins
-        if (user.getCoinBalance() < request.getCoins()) {
-            throw new RuntimeException("Insufficient coins. Available: " + user.getCoinBalance() + ", Required: " + request.getCoins());
+        // Check if user has enough coins using coin history calculation
+        int availableCoins = rewardService.getValidTotalCoins(userId);
+        if (availableCoins < request.getCoins()) {
+            throw new RuntimeException("Insufficient coins. Available: " + availableCoins + ", Required: " + request.getCoins());
         }
         
         // Get conversion rate from config
@@ -76,11 +78,7 @@ public class WithdrawalService {
         
         Withdrawal savedWithdrawal = withdrawalRepository.save(withdrawal);
         
-        // Deduct coins from user account
-        user.setCoinBalance(user.getCoinBalance() - request.getCoins());
-        userRepository.save(user);
-        
-        // Add coin history entry
+        // Add coin history entry for the withdrawal (negative coins)
         CoinHistory coinHistory = CoinHistory.builder()
                 .userId(userId)
                 .count(-request.getCoins()) // Negative for withdrawal
@@ -97,13 +95,40 @@ public class WithdrawalService {
         Withdrawal withdrawal = withdrawalRepository.findById(withdrawalId)
                 .orElseThrow(() -> new RuntimeException("Withdrawal not found"));
         
-        Withdrawal.WithdrawalStatus oldStatus = withdrawal.getStatus();
         withdrawal.setStatus(newStatus);
         withdrawal.setUpdatedAt(LocalDateTime.now());
         
         // Set proof image URL if provided
         if (proofImageUrl != null && !proofImageUrl.trim().isEmpty()) {
             withdrawal.setWithdrawalProofImageUrl(proofImageUrl);
+        }
+        
+        Withdrawal updatedWithdrawal = withdrawalRepository.save(withdrawal);
+        
+        // If status is being rejected and it was previously pending/processing, don't return coins
+        // (as per requirement: on reject withdrawal we won't add the coins again to his account)
+        
+        User user = userRepository.findById(withdrawal.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        return WithdrawalResponse.fromWithdrawal(updatedWithdrawal, user.getName());
+    }
+    
+    public WithdrawalResponse updateWithdrawalStatus(String withdrawalId, Withdrawal.WithdrawalStatus newStatus, String proofImageUrl, String comments) {
+        Withdrawal withdrawal = withdrawalRepository.findById(withdrawalId)
+                .orElseThrow(() -> new RuntimeException("Withdrawal not found"));
+        
+        withdrawal.setStatus(newStatus);
+        withdrawal.setUpdatedAt(LocalDateTime.now());
+        
+        // Set proof image URL if provided
+        if (proofImageUrl != null && !proofImageUrl.trim().isEmpty()) {
+            withdrawal.setWithdrawalProofImageUrl(proofImageUrl);
+        }
+        
+        // Set comments if provided
+        if (comments != null && !comments.trim().isEmpty()) {
+            withdrawal.setComments(comments);
         }
         
         Withdrawal updatedWithdrawal = withdrawalRepository.save(withdrawal);
@@ -202,11 +227,16 @@ public class WithdrawalService {
                     // Format amount to match the stored format (2 decimal places)
                     BigDecimal formattedAmount = amount.setScale(2, RoundingMode.HALF_UP);
                     
-                    // Check if user has already withdrawn this specific amount
-                    boolean hasExistingWithdrawalForAmount = withdrawalRepository.existsByUserIdAndMoneyInRs(userId, formattedAmount);
+                    // User is eligible if:
+                    // 1. No existing withdrawal for this amount, OR
+                    // 2. Existing withdrawal is REJECTED (user can try again)
+                    boolean hasNonRejectedWithdrawal = withdrawalRepository.existsByUserIdAndMoneyInRsAndStatusNot(
+                        userId, 
+                        formattedAmount, 
+                        Withdrawal.WithdrawalStatus.REJECTED
+                    );
                     
-                    // User is eligible if they don't have an existing withdrawal for this specific amount
-                    boolean isEligible = !hasExistingWithdrawalForAmount;
+                    boolean isEligible = !hasNonRejectedWithdrawal;
                     
                     return WithdrawalOptionResponse.of(amount, coins, isEligible);
                 })

@@ -5,13 +5,14 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import jakarta.validation.constraints.NotBlank;
+import java.util.Map;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BookmarkRequest {
-    @NotBlank(message = "Story ID is required")
-    private String storyId;
-} 
+public class UserConfigResponse {
+    private Map<String, Object> configs;
+    private int totalConfigs;
+    private String message;
+}

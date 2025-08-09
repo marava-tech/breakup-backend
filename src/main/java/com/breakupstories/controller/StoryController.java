@@ -14,7 +14,7 @@ import com.breakupstories.service.AuditService;
 import com.breakupstories.service.ClientInfoService;
 import com.breakupstories.service.StoryService;
 import com.breakupstories.service.UserService;
-import com.breakupstories.service.StoryDataStoreService;
+
 import com.breakupstories.util.RequestContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,7 +31,7 @@ import org.springframework.web.multipart.MultipartHttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.breakupstories.model.StoryDataStore;
+
 
 @RestController
 @RequestMapping("/api/stories")
@@ -45,7 +45,6 @@ public class StoryController {
     private final AuditService auditService;
     private final ClientInfoService clientInfoService;
     private final StoryRepository storyRepository;
-    private final StoryDataStoreService storyDataStoreService;
     
     @PostMapping
     @Operation(summary = "Create a new story", description = "Upload a new story with content, tags, and metadata")

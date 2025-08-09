@@ -31,7 +31,6 @@ public class StoryConversionWorker {
     
     private final StoryDataStoreRepository storyDataStoreRepository;
     private final StoryRepository storyRepository;
-    private final StoryStatusService storyStatusService;
     private final DefaultConfigService defaultConfigService;
     private final FirstStoryRewardService firstStoryRewardService;
     private final AudioConversionWorker audioConversionWorker;

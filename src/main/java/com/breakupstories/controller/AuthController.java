@@ -6,6 +6,7 @@ import com.breakupstories.service.JwtService;
 import com.breakupstories.service.OTPService;
 import com.breakupstories.service.UserService;
 import com.breakupstories.service.RewardService;
+import com.breakupstories.service.DeviceMappingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -14,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
+
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,6 +30,7 @@ public class AuthController {
     private final JwtService jwtService;
     private final OTPService otpService;
     private final RewardService rewardService;
+    private final DeviceMappingService deviceMappingService;
     
     @PostMapping("/send-otp-registration")
     @Operation(summary = "Send OTP for registration", description = "Send OTP to email for new user registration")
@@ -102,13 +104,18 @@ public class AuthController {
     @PostMapping("/verify-otp-login")
     @Operation(summary = "Verify OTP and login", description = "Verify OTP and login existing user")
     public ResponseEntity<AuthResponse> verifyOtpAndLogin(@Valid @RequestBody OtpVerificationRequest request) {
-        log.info("Verifying OTP for login with email: {}", request.getEmail());
+        log.info("Verifying OTP for login with email: {} and device ID: {}", request.getEmail(), request.getDeviceId());
         
         // Verify OTP first
         boolean otpValid = otpService.verifyOtp(request.getEmail(), request.getOtp());
         if (!otpValid) {
             log.error("OTP verification failed for login with email: {}", request.getEmail());
             throw new InvalidOTPException("Invalid OTP provided for login");
+        }
+        
+        // Handle device ID mapping if provided (asynchronously)
+        if (request.getDeviceId() != null && !request.getDeviceId().trim().isEmpty()) {
+            deviceMappingService.mapDeviceIdToUserAsync(request.getEmail(), request.getDeviceId());
         }
         
         // Get user and generate JWT token
@@ -118,7 +125,7 @@ public class AuthController {
         
         AuthResponse response = AuthResponse.of(token, user);
         
-        log.info("User logged in successfully with email: {}", request.getEmail());
+        log.info("User logged in successfully with email: {} and device ID: {}", request.getEmail(), request.getDeviceId());
         return ResponseEntity.ok(response);
     }
     

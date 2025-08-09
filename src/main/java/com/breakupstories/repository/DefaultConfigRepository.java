@@ -24,4 +24,5 @@ public interface DefaultConfigRepository extends MongoRepository<DefaultConfig, 
     
     // App configuration methods
     List<DefaultConfig> findByKeyStartingWithAndActiveTrue(String keyPrefix);
+    List<DefaultConfig> findByKeyInAndActiveTrue(List<String> keys);
 }
