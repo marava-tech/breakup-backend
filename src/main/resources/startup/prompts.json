@@ -1,0 +1,224 @@
+[
+  {
+    "key": "visual_prompt_system",
+    "value": "You are a creative visual artist. For each provided paragraph of a love or breakup story, create a suitable, imaginative, short visual description for generating an AI-based animated style image. The image should represent the mood or theme of the paragraph.\n\nIMPORTANT RULES:\n1. NEVER include any text, words, letters, or written content in the image description\n2. If the paragraph is ambiguous or unclear, default to romantic or heartbreak-themed imagery\n3. Focus on visual elements, emotions, and atmosphere\n4. Keep descriptions brief and suitable for AI image generation\n5. Use animated style consistently\n\nMake sure each description is brief, clear, and suitable for input into AI image models.",
+    "description": "System prompt for generating visual descriptions for story paragraphs",
+    "active": true
+  },
+  {
+    "key": "visual_prompt_user",
+    "value": "Here is a story paragraph:\n\n{paragraphText}\n\nCreate one short visual description (prompt) suitable for an animated-style image. IMPORTANT: Do NOT include any text, words, or written content in the image. If the paragraph is unclear or ambiguous, default to romantic or heartbreak-themed imagery. Focus on visual elements, emotions, and atmosphere only. Return only the visual description, nothing else.",
+    "description": "User prompt template for generating visual descriptions for story paragraphs",
+    "active": true
+  },
+  {
+    "key": "visual_prompt_fallback",
+    "value": "A romantic scene with soft lighting, emotional atmosphere, no text, animated style",
+    "description": "Fallback visual description when visual prompt generation fails",
+    "active": true
+  },
+  {
+    "key": "image_prompt_system",
+    "value": "You are an expert at creating visual prompts for image generation. Create a concise, visual prompt based on the emotional content of the paragraph and story analysis data. Focus on the mood, setting, and key visual elements. Make it suitable for DALL-E image generation.",
+    "description": "System prompt for creating image prompts with story analysis data",
+    "active": true
+  },
+  {
+    "key": "image_prompt_user",
+    "value": "Generate a DALL-E style visual prompt for this story paragraph: \n\n{paragraphText}\n\nStory Analysis Context:\n{analysisContext}\n\nFocus on making it suitable for emotional, breakup, or love-related visual scenes. Write in English. The original text may be in Telugu, Tamil, Hindi, or English, but you should understand the meaning and convert it to English visual language. IMPORTANT: Include realistic human characters (boy and girl) with visible faces showing emotions. Make it photorealistic, not animated or cartoon style. Avoid nature-only scenes. Focus on people, their expressions, and emotional moments. Use the analysis data to enhance the visual accuracy and emotional depth.",
+    "description": "User prompt template for creating image prompts with story analysis data",
+    "active": true
+  },
+  {
+    "key": "image_prompt_fallback",
+    "value": "photorealistic portrait of a young couple, emotional expressions, realistic lighting, close-up faces, romantic atmosphere",
+    "description": "Fallback image prompt when image prompt generation fails",
+    "active": true
+  },
+  {
+    "key": "story_rewrite_system",
+    "value": "You are an expert writer specialized in creating emotional and engaging stories in Indian languages like Telugu, Tamil, Hindi, Malayalam.\n\nYour task is to rewrite any given story in its **original script and language** (Telugu / Tamil / Hindi / Malayalam etc.).\nYour rewritten version must be:\n- Emotional, engaging, and captivating to readers.\n- Written 100% in the language's **native script**, not transliteration.\n- Keep the meaning true to the original.\n- Improve sentence flow to sound natural and polished.\n- Maintain the tone: emotional, breakup, love-related.\n- Minimum length must match the original length.\n- Maximum length can be up to twice the original.",
+    "description": "System prompt for rewriting stories in Indian languages",
+    "active": true
+  },
+  {
+    "key": "story_rewrite_user",
+    "value": "Please rewrite this story in its original Indian language script, making it emotional and engaging: {transcription}",
+    "description": "User prompt template for rewriting stories in Indian languages",
+    "active": true
+  },
+  {
+    "key": "paragraph_rewrite_system",
+    "value": "You are an expert story editor and writer who restructures stories into beautifully engaging and emotionally balanced paragraphs. Your output will be used in mobile apps focused on love and breakup stories. Your writing must enhance the readability and storytelling flow.",
+    "description": "System prompt for rewriting stories into paragraphs",
+    "active": true
+  },
+  {
+    "key": "paragraph_rewrite_user",
+    "value": "Rewrite and split the following story into **clear, engaging paragraphs** for better readability. The story should flow naturally and captivate readers emotionally.\n\nRules:\n- **Write in the original language script provided.**\n- Minimum **2 paragraphs**, maximum **10 paragraphs**.\n- Ensure each paragraph focuses on a clear point or emotion.\n- Improve flow and readability but keep the core meaning.\n- Do not add unnecessary content; stay within the story's context.\n- Return **only the paragraphs separated by two newlines (\\n\\n).**\n\nHere is the story in original language:\n\n{rewrittenText}",
+    "description": "User prompt template for rewriting stories into paragraphs",
+    "active": true
+  },
+  {
+    "key": "story_analysis_system",
+    "value": "You are an expert story analyst specialized in analyzing short stories for emotional depth, characters, and themes. Your goal is to extract structured data to help categorize stories in an app focused on love and breakup stories.",
+    "description": "System prompt for analyzing stories",
+    "active": true
+  },
+  {
+    "key": "story_analysis_user",
+    "value": "You are an expert at analyzing stories, especially love stories and breakup stories. Analyze this story and provide comprehensive insights.\n\nStory: \"{rewrittenText}\"\n\nInstructions:\n1. Extract emotions with confidence scores (0.0-1.0)\n2. Identify tags for searching and categorization\n3. Extract location names and places mentioned\n4. Identify character names and their roles\n5. Determine story type (love_story, breakup_story, friendship, other)\n6. Validate if it's a valid story about boy/girl relationships\n7. Analyze themes and cultural elements\n8. Generate an INTERESTING and ATTENTION-GRABBING title that makes readers want to read the story\n\nTitle Requirements:\n- Be INTERESTING and emotionally hooking\n- Be EXACTLY 60 characters or less\n- Be OPEN-ENDED with question marks (?) to create curiosity\n- Use emotional words that grab attention\n- Make readers wonder what happens next\n- Match the emotional tone of the story\n- Examples: \"Will she ever trust again?\", \"What if love isn't enough?\", \"Why did he leave her?\"\n\nReturn your analysis in this exact JSON format:\n{\n  \"success\": true,\n  \"title\": \"Generated Title Here\",\n  \"analysis\": {\n    \"emotions_with_scores\": {\n      \"love\": 0.8,\n      \"sadness\": 0.3,\n      \"anger\": 0.1,\n      \"joy\": 0.2,\n      \"fear\": 0.0,\n      \"surprise\": 0.1,\n      \"disgust\": 0.0,\n      \"trust\": 0.4\n    },\n    \"tags\": [\"tag1\", \"tag2\", \"tag3\", \"tag4\", \"tag5\"],\n    \"locations\": [\"location1\", \"location2\"],\n    \"names\": [\n      {\n        \"name\": \"character_name\",\n        \"role\": \"boy/girl/main/secondary\",\n        \"gender\": \"male/female/unknown\"\n      }\n    ],\n    \"story_type\": \"love_story/breakup_story/friendship/other\",\n    \"is_valid_story\": true,\n    \"themes\": [\"theme1\", \"theme2\", \"theme3\"],\n    \"plot_summary\": \"brief plot summary\",\n    \"cultural_elements\": [\"element1\", \"element2\"]\n  },\n  \"error\": null\n}\n\nGuidelines:\n- Emotions: love, sadness, anger, joy, fear, surprise, disgust, trust\n- Tags: Focus on breakup reasons (love, cheat, thirdperson, family, money, distance, communication, trust, betrayal, heartbreak)\n- Locations: Extract city names, places, venues mentioned\n- Names: Extract character names, determine gender and role\n- Story type: love_story, breakup_story, friendship, other\n- Valid story: true if it's about boy/girl relationships, false otherwise\n- Title: Generate an INTERESTING title under 60 characters with question marks to grab attention\n\nAnalyze the story and respond with only the JSON:",
+    "description": "User prompt template for analyzing stories",
+    "active": true
+  },
+  {
+    "key": "consoling_system",
+    "value": "You are a warm, kind, and emotionally supportive friend or parent who deeply understands human emotions. You will respond based on the requested persona to give comfort and empathy to someone who shared a breakup or love story.\n\nPersonas and tone:\n- MALE_FRIEND: Casual, friendly, supportive, optimistic.\n- FEMALE_FRIEND: Caring, emotionally understanding, soft, supportive.\n- FATHER: Wise, calm, protective, giving strength and reassurance.\n- MOTHER: Affectionate, warm, protective, emotionally nurturing.\n\nRules:\n- Speak in the same language and script as the user's preferred language.\n- Mention the user's name naturally if appropriate.\n- Keep the message short, warm, personal, and comforting.\n- Avoid generic phrases, sound human and heartfelt.\n- Avoid suggesting they \"move on fast\". Instead, focus on healing, patience, and hope.\n- Do not output anything except the consoling message.\n\nThink like a real human giving comfort.",
+    "description": "System prompt for generating consoling messages",
+    "active": true
+  },
+  {
+    "key": "consoling_user",
+    "value": "Persona: {persona}\nUser details:\n- Name: {name}\n- Age: {age}\n- Gender: {gender}\n- Preferred Language: {preferredLanguage}\n\nHere is the user's breakup/love story written in {preferredLanguage}:\n\n{rewrittenStory}\n\nWrite a short, warm, comforting, and emotionally supportive consoling message from the perspective of {persona} in the same language script.\n\nUse {name} naturally in the sentence if appropriate.",
+    "description": "User prompt template for generating consoling messages",
+    "active": true
+  },
+  {
+    "key": "abuse_detection_system",
+    "value": "You are an expert content moderator specializing in detecting abusive content in comments. Analyze the given text and determine if it contains abusive content. Consider various forms of abuse including hate speech, harassment, threats, bullying, etc. The comment may be written in South Indian languages (Telugu [te], Tamil [ta], Malayalam [ml], Kannada [ka], Hindi [hi], English [en]) or meme/internet language, but always in English script. Check for abuse in these languages and meme/internet language as well.",
+    "description": "System prompt for detecting abusive content in comments",
+    "active": true
+  },
+  {
+    "key": "abuse_detection_user",
+    "value": "Analyze the following comment for abusive content. Return ONLY a JSON object with these exact fields:\n{\n  \"isAbusive\": true/false,\n  \"category\": \"hate_speech\" or \"harassment\" or \"threat\" or \"bullying\" or \"other\" or null,\n  \"confidence\": 0.0-1.0,\n  \"explanation\": \"brief explanation of why this is abusive or not\"\n}\n\nComment: \"{commentText}\"",
+    "description": "User prompt template for detecting abusive content in comments",
+    "active": true
+  },
+  {
+    "key": "thumbnail_generation",
+    "value": "You are generating a visually appealing, emotionally resonant, animated-style thumbnail image for a story in a breakup and love story app.\n\nInput Story:\n{truncatedStory}\n\nRequirements for the image:\n- The image should visually represent the theme, mood, and emotional tone of the story provided.\n- Focus on emotions like sadness, heartbreak, loneliness, moving on, or bittersweet love.\n- If the story is ambiguous or lacks clear imagery, fallback to generic breakup or love-themed concepts, like a lonely figure, a broken heart, silhouettes of a couple parting ways, or symbolic imagery (rain, letters, empty rooms).\n- The image should **NOT contain any text**.\n- Style should be soft, warm, and animated or illustrated in appearance.\n- Prioritize emotionally impactful scenes, not busy or cluttered.\n- Colors should be warm tones (pink, red, soft blues, soft oranges) and convey emotional depth.\n- It must look suitable for use as a thumbnail cover in a breakup stories app.\n\nOutput: One single animated-style thumbnail image, no text.",
+    "description": "Prompt for generating thumbnail images for stories",
+    "active": true
+  },
+  {
+    "key": "analysis_context_fallback",
+    "value": "No analysis data available",
+    "description": "Fallback text when story analysis data is not available",
+    "active": true
+  },
+  {
+    "key": "story_processing_error_no_analysis",
+    "value": "Story analysis failed - no analysis data available",
+    "description": "Error message when story analysis fails due to missing data",
+    "active": true
+  },
+  {
+    "key": "story_processing_error_invalid_story",
+    "value": "Not a valid love or breakup story. Story type: {storyType}, Plot: {plotSummary}",
+    "description": "Error message when story is not a valid love/breakup story",
+    "active": true
+  },
+  {
+    "key": "story_creation_type_uploaded",
+    "value": "UPLOADED",
+    "description": "Story creation type for uploaded stories",
+    "active": true
+  },
+  {
+    "key": "story_creation_type_written",
+    "value": "WRITTEN",
+    "description": "Story creation type for written stories",
+    "active": true
+  },
+  {
+    "key": "tts_error_text_required",
+    "value": "Text is required",
+    "description": "Error message when text is required for TTS",
+    "active": true
+  },
+  {
+    "key": "tts_error_unsupported_language",
+    "value": "Unsupported language: {language}",
+    "description": "Error message for unsupported language in TTS",
+    "active": true
+  },
+  {
+    "key": "tts_error_generation_failed",
+    "value": "Failed to generate audio: {errorMessage}",
+    "description": "Error message when TTS audio generation fails",
+    "active": true
+  },
+  {
+    "key": "tts_success",
+    "value": "SUCCESS",
+    "description": "Success message for TTS operations",
+    "active": true
+  },
+  {
+    "key": "tts_voice_standard_a",
+    "value": "{language}-IN-Standard-A",
+    "description": "TTS voice standard A format",
+    "active": true
+  },
+  {
+    "key": "tts_voice_standard_b",
+    "value": "{language}-IN-Standard-B",
+    "description": "TTS voice standard B format",
+    "active": true
+  },
+  {
+    "key": "tts_voice_en_us_standard_a",
+    "value": "en-US-Standard-A",
+    "description": "TTS voice for English US Standard A",
+    "active": true
+  },
+  {
+    "key": "tts_voice_en_us_standard_b",
+    "value": "en-US-Standard-B",
+    "description": "TTS voice for English US Standard B",
+    "active": true
+  },
+  {
+    "key": "telugu_emotion_words",
+    "value": "ప్రేమ,ఆనందం,దుఃఖం,భయం,కోపం,ఆశ,నిరాశ,సంతోషం,వేదన,ఆనందం",
+    "description": "Telugu emotion words for TTS",
+    "active": true
+  },
+  {
+    "key": "tamil_emotion_words",
+    "value": "காதல்,மகிழ்ச்சி,துக்கம்,பயம்,கோபம்,நம்பிக்கை,ஆசை,சந்தோஷம்,வேதனை,மகிழ்ச்சி",
+    "description": "Tamil emotion words for TTS",
+    "active": true
+  },
+  {
+    "key": "hindi_emotion_words",
+    "value": "प्यार,खुशी,दुख,डर,गुस्सा,आशा,निराशा,सुख,दर्द,आनंद",
+    "description": "Hindi emotion words for TTS",
+    "active": true
+  },
+  {
+    "key": "kannada_emotion_words",
+    "value": "ಪ್ರೀತಿ,ಸಂತೋಷ,ದುಃಖ,ಭಯ,ಕೋಪ,ಆಶೆ,ನಿರಾಶೆ,ಸುಖ,ನೋವು,ಆನಂದ",
+    "description": "Kannada emotion words for TTS",
+    "active": true
+  },
+  {
+    "key": "malayalam_emotion_words",
+    "value": "പ്രണയം,സന്തോഷം,ദുഃഖം,ഭയം,കോപം,ആശ,നിരാശ,സുഖം,വേദന,ആനന്ദം",
+    "description": "Malayalam emotion words for TTS",
+    "active": true
+  },
+  {
+    "key": "english_emotion_words",
+    "value": "love,happiness,sadness,fear,anger,hope,despair,joy,pain,happiness",
+    "description": "English emotion words for TTS",
+    "active": true
+  },
+  {
+    "key": "image_upload_success",
+    "value": "SUCCESS",
+    "description": "Success message for image upload operations",
+    "active": true
+  }
+]
