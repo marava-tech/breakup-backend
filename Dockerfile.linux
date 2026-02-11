@@ -1,14 +1,12 @@
 # Linux optimized Docker image for Spring Boot application
-FROM openjdk:17-slim
+FROM eclipse-temurin:17-jre
 
-# Install necessary runtime packages for Linux
+# Install necessary runtime packages and create user in single layer
 RUN apt-get update && apt-get install -y \
     wget \
     curl \
+    && groupadd -r appgroup && useradd -r -g appgroup appuser \
     && rm -rf /var/lib/apt/lists/*
-
-# Create app user for security
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
 # Set working directory
 WORKDIR /app
@@ -33,4 +31,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
 ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC -XX:+UseContainerSupport -XX:+OptimizeStringConcat -XX:+UseStringDeduplication"
 
 # Run the application on internal port 8080
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"] 
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

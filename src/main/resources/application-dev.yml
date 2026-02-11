@@ -14,23 +14,23 @@ spring:
       # Use URI only if explicitly provided (for backward compatibility)
       # Otherwise use individual properties to handle special characters in password
       # Note: If URI is empty or not set, Spring Boot will use individual properties below
-      uri: ${SPRING_DATA_MONGODB_URI:}
+      uri: 
       # Individual properties (used when URI is not set or empty)
-      host: ${SPRING_DATA_MONGODB_HOST:${MONGO_HOST:localhost}}
-      port: ${SPRING_DATA_MONGODB_PORT:${MONGO_PORT:27017}}
-      database: ${SPRING_DATA_MONGODB_DATABASE:${MONGO_DATABASE:breakup_stories}}
-      username: ${SPRING_DATA_MONGODB_USERNAME:${MONGO_ROOT_USERNAME:madhu}}
-      password: ${SPRING_DATA_MONGODB_PASSWORD:${MONGO_ROOT_PASSWORD:REDACTED_DB_PASSWORD}}
-      authentication-database: ${SPRING_DATA_MONGODB_AUTHENTICATION_DATABASE:admin}
+      host: localhost
+      port: 27017
+      database: breakup_stories
+      username: madhu
+      password: REDACTED_DB_PASSWORD
+      authentication-database: admin
       auto-index-creation: true
 
   
   # Gmail SMTP configuration for OTP emails
   mail:
-    host: ${BREAKUP_MAIL_HOST:smtp.gmail.com}
-    port: ${BREAKUP_MAIL_PORT:587}
-    username: ${BREAKUP_MAIL_USERNAME:marava.technologies@gmail.com}
-    password: ${BREAKUP_MAIL_PASSWORD:REDACTED_GMAIL_PASSWORD}
+    host: smtp.gmail.com
+    port: 587
+    username: marava.technologies@gmail.com
+    password: REDACTED_GMAIL_PASSWORD
     properties:
       mail:
         smtp:
@@ -51,7 +51,7 @@ server:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:rA3jPjK6o0IBkSyKXZ8OEwTbU5z6a4NE2Kq+dfS2A3k=}
+  secret: rA3jPjK6o0IBkSyKXZ8OEwTbU5z6a4NE2Kq+dfS2A3k=
   expiration: 2592000000 # 30 days in milliseconds
 
 
@@ -105,11 +105,7 @@ management:
 # Cloudinary Configuration for Breakup Stories
 app:
   cloudinary:
-    cloud-name: ${BREAKUP_CLOUDINARY_CLOUD_NAME:dhssmiyoc}
-    api-key: ${BREAKUP_CLOUDINARY_API_KEY:REDACTED_CLOUDINARY_KEY}
-    api-secret: ${BREAKUP_CLOUDINARY_API_SECRET:REDACTED_CLOUDINARY_SECRET}
-
-
-
-
+    cloud-name: dhssmiyoc
+    api-key: REDACTED_CLOUDINARY_KEY
+    api-secret: REDACTED_CLOUDINARY_SECRET
 

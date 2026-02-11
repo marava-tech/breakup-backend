@@ -20,6 +20,8 @@ public class WebConfig implements WebMvcConfigurer {
                         "https://localhost:3000",
                         "https://breakupadmin.marava.tech",
                         "http://breakupadmin.marava.tech",
+                        "https://breakup-dashboard.marava.tech",
+                        "http://breakup-dashboard.marava.tech",
                         "http://213.163.205.34:3100",
                         "https://213.163.205.34:3100"
                 )
