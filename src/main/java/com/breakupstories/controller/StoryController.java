@@ -302,38 +302,47 @@ public class StoryController {
         ClientInfoService.ClientInfo clientInfo = clientInfoService.extractClientInfo();
         ipAddress = clientInfo.getIpAddress();
         
-        // Check if user has viewed this story recently (1-minute cooldown)
-        boolean hasViewedRecently = false;
-        if (userId != null) {
-            hasViewedRecently = auditService.hasViewedStoryRecently(userId, storyId);
-        } else if (ipAddress != null) {
-            hasViewedRecently = auditService.hasViewedStoryRecentlyByIP(ipAddress, storyId);
-        }
+        // COMMENTED OUT: Check if user has viewed this story recently (1-minute cooldown)
+        // boolean hasViewedRecently = false;
+        // if (userId != null) {
+        //     hasViewedRecently = auditService.hasViewedStoryRecently(userId, storyId);
+        // } else if (ipAddress != null) {
+        //     hasViewedRecently = auditService.hasViewedStoryRecentlyByIP(ipAddress, storyId);
+        // }
+        // 
+        // if (hasViewedRecently) {
+        //     log.info("View skipped due to 1-minute cooldown - story: {}, user: {}, ip: {}", storyId, userId, ipAddress);
+        //     return ResponseEntity.ok(response);
+        // }
         
-        if (hasViewedRecently) {
-            log.info("View skipped due to 1-minute cooldown - story: {}, user: {}, ip: {}", storyId, userId, ipAddress);
-            return ResponseEntity.ok(response);
-        }
+        // COMMENTED OUT: Check if user is viewing their own story
+        // boolean isOwnStory = false;
+        // if (userId != null) {
+        //     Story story = storyRepository.findById(storyId).orElse(null);
+        //     if (story != null) {
+        //         isOwnStory = userId.equals(story.getUserId());
+        //     }
+        // }
         
-        // Check if user is viewing their own story
+        // Always increment view count regardless of who viewed it or how many times
+        storyService.incrementViewCount(storyId);
+        log.info("View count incremented for story: {} (viewed by user: {}, ip: {})", storyId, userId, ipAddress);
+        
+        // COMMENTED OUT: Only increment view count if user is not viewing their own story and hasn't viewed recently
+        // if (!isOwnStory) {
+        //     storyService.incrementViewCount(storyId);
+        //     log.info("View count incremented for story: {} (viewed by user: {}, ip: {})", storyId, userId, ipAddress);
+        // } else {
+        //     log.info("View count not incremented for story: {} (user viewing their own story: {})", storyId, userId);
+        // }
+        
+        // Audit story view (always audit, regardless of cooldown or self-view)
         boolean isOwnStory = false;
         if (userId != null) {
             Story story = storyRepository.findById(storyId).orElse(null);
             if (story != null) {
                 isOwnStory = userId.equals(story.getUserId());
             }
-        }
-        
-        // Only increment view count if user is not viewing their own story and hasn't viewed recently
-        if (!isOwnStory) {
-            storyService.incrementViewCount(storyId);
-            log.info("View count incremented for story: {} (viewed by user: {}, ip: {})", storyId, userId, ipAddress);
-        } else {
-            log.info("View count not incremented for story: {} (user viewing their own story: {})", storyId, userId);
-        }
-        
-        // Audit story view (only if not viewed recently and not own story)
-        if (userId != null) {
             auditService.logStoryView(userId, storyId, clientInfo.getUserAgent(), 
                                     clientInfo.getIpAddress(), clientInfo.getSessionId(), isOwnStory);
             log.info("Audited story view for user {} on story {} (own story: {})", userId, storyId, isOwnStory);

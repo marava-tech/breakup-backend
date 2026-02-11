@@ -134,8 +134,8 @@ public class UploadServiceImpl implements UploadService {
 
             Map<String, Object> uploadOptions = new HashMap<>();
 
-            // Set folder to "breakup" for all uploads
-            uploadOptions.put("folder", "breakup");
+            // Set folder to "breakup-stories" for all uploads
+            uploadOptions.put("folder", "breakup-stories");
 
             // Configure upload options based on file type with optimized settings
             if (contentType != null) {
