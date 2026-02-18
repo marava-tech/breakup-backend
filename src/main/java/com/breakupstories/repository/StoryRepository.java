@@ -12,17 +12,28 @@ import java.util.List;
 
 @Repository
 public interface StoryRepository extends MongoRepository<Story, String> {
-    
+
     Page<Story> findByUserIdOrderByCreatedAtDesc(String userId, Pageable pageable);
-    
+
     List<Story> findByStatus(Story.StoryStatus status);
-    
+
     // New method with limit and ordering by createdAt (ascending - oldest first)
     @Query(value = "{'status': ?0}", sort = "{'createdAt': 1}")
     List<Story> findByStatusOrderByCreatedAtAscLimit(Story.StoryStatus status, int limit);
-    
+
     Page<Story> findByStatusOrderByViewCountDesc(Story.StoryStatus status, Pageable pageable);
-    
+
+    Page<Story> findByStatusOrderByPlayCountDesc(Story.StoryStatus status, Pageable pageable);
+
+    Page<Story> findByStatusOrderByCompletionCountDescPlayCountDesc(Story.StoryStatus status, Pageable pageable);
+
+    Page<Story> findByLanguageAndStatusOrderByPlayCountDesc(String language, Story.StoryStatus status,
+            Pageable pageable);
+
+    Page<Story> findByLanguageAndStatusOrderByCompletionCountDescPlayCountDesc(String language,
+            Story.StoryStatus status,
+            Pageable pageable);
+
     Page<Story> findByStatusOrderByCreatedAtDesc(Story.StoryStatus status, Pageable pageable);
 
     /** Cursor-based pagination — efficient for deep pages. */
@@ -30,47 +41,59 @@ public interface StoryRepository extends MongoRepository<Story, String> {
             Story.StoryStatus status, java.time.LocalDateTime createdAtBefore, Pageable pageable);
 
     List<Story> findByLanguageAndStatusAndCreatedAtBeforeOrderByCreatedAtDesc(
-            String language, Story.StoryStatus status, java.time.LocalDateTime createdAtBefore, Pageable pageable);
-    
+            String language, Story.StoryStatus status, java.time.LocalDateTime createdAtBefore,
+            Pageable pageable);
+
+    List<Story> findByStatusAndCategoryAndCreatedAtBeforeOrderByCreatedAtDesc(
+            Story.StoryStatus status, Story.Category category, java.time.LocalDateTime createdAtBefore,
+            Pageable pageable);
+
+    List<Story> findByStatusAndLanguageAndCategoryAndCreatedAtBeforeOrderByCreatedAtDesc(
+            Story.StoryStatus status, String language, Story.Category category,
+            java.time.LocalDateTime createdAtBefore, Pageable pageable);
+
     Page<Story> findByLanguageAndStatus(String language, Story.StoryStatus status, Pageable pageable);
-    
-    Page<Story> findByLanguageAndStatusOrderByCreatedAtDesc(String language, Story.StoryStatus status, Pageable pageable);
-    
-    Page<Story> findByLanguageAndStatusOrderByViewCountDesc(String language, Story.StoryStatus status, Pageable pageable);
-    
+
+    Page<Story> findByLanguageAndStatusOrderByCreatedAtDesc(String language, Story.StoryStatus status,
+            Pageable pageable);
+
+    Page<Story> findByLanguageAndStatusOrderByViewCountDesc(String language, Story.StoryStatus status,
+            Pageable pageable);
+
     // Custom query for filtering stories with multiple criteria
     @Query("{'status': 'ACTIVE', " +
-           "'$and': [" +
-           "  { $or: [ { 'metadata.language': ?0 }, { $expr: { $eq: [?0, null] } } ] }, " +
-           "  { $or: [ { 'title': { $regex: ?1, $options: 'i' } }, { $expr: { $eq: [?1, null] } } ] }, " +
-           "  { $or: [ { 'createdAt': { $gte: ?2 } }, { $expr: { $eq: [?2, null] } } ] }, " +
-           "  { $or: [ { 'createdAt': { $lte: ?3 } }, { $expr: { $eq: [?3, null] } } ] } " +
-           "]}")
-    Page<Story> findStoriesWithFilters(String language, String titleContains, 
-                                      LocalDateTime createdAtStart, LocalDateTime createdAtEnd, 
-                                      Pageable pageable);
-    
+            "'$and': [" +
+            "  { $or: [ { 'metadata.language': ?0 }, { $expr: { $eq: [?0, null] } } ] }, " +
+            "  { $or: [ { 'title': { $regex: ?1, $options: 'i' } }, { $expr: { $eq: [?1, null] } } ] }, " +
+            "  { $or: [ { 'createdAt': { $gte: ?2 } }, { $expr: { $eq: [?2, null] } } ] }, " +
+            "  { $or: [ { 'createdAt': { $lte: ?3 } }, { $expr: { $eq: [?3, null] } } ] } " +
+            "]}")
+    Page<Story> findStoriesWithFilters(String language, String titleContains,
+            LocalDateTime createdAtStart, LocalDateTime createdAtEnd,
+            Pageable pageable);
+
     // Query for filtering by date range
     @Query("{'status': 'ACTIVE', 'createdAt': { $gte: ?0, $lte: ?1 }}")
     Page<Story> findByCreatedAtBetween(LocalDateTime startDate, LocalDateTime endDate, Pageable pageable);
-    
+
     // Count stories by user ID and status
     long countByUserIdAndStatus(String userId, Story.StoryStatus status);
-    
+
     // Find stories by user ID and status
     List<Story> findByUserIdAndStatus(String userId, Story.StoryStatus status);
-    
+
     // Sum view count by user ID
     @Query("{'userId': ?0}")
     Long sumViewCountByUserId(String userId);
-    
+
     // Find stories by user ID with null audioUrl ordered by createdAt desc
     List<Story> findByUserIdAndAudioUrlIsNullOrderByCreatedAtDesc(String userId);
-    
-    // Method specifically for UPLOAD_PENDING stories with limit (ascending - oldest first)
+
+    // Method specifically for UPLOAD_PENDING stories with limit (ascending - oldest
+    // first)
     @Query(value = "{'status': 'UPLOAD_PENDING'}", sort = "{'createdAt': 1}")
     List<Story> findUploadPendingStoriesOrderByCreatedAtAscLimit(int limit);
-    
+
     // Find stories by tags (any tag in the list)
     List<Story> findByTagsIn(List<String> tags);
 
@@ -78,7 +101,8 @@ public interface StoryRepository extends MongoRepository<Story, String> {
     @Query("{'tags': {$all: ?0}}")
     List<Story> findByTagsContainingAll(List<String> tags);
 
-    // Count active stories that share at least one tag (used for similar-stories pagination).
+    // Count active stories that share at least one tag (used for similar-stories
+    // pagination).
     // Recommended index: db.stories.createIndex({ status:1, tags:1, viewCount:-1 })
     @Query(value = "{'status': 'ACTIVE', '_id': {'$ne': ?0}, 'tags': {'$in': ?1}}", count = true)
     long countSimilarByTags(String excludeId, List<String> tags);
@@ -86,91 +110,126 @@ public interface StoryRepository extends MongoRepository<Story, String> {
     // Count active stories that share at least one tag within a specific language
     @Query(value = "{'status': 'ACTIVE', '_id': {'$ne': ?0}, 'language': ?2, 'tags': {'$in': ?1}}", count = true)
     long countSimilarByTagsAndLanguage(String excludeId, List<String> tags, String language);
-    
+
     // Find stories by story IDs and status
     List<Story> findByIdInAndStatus(List<String> storyIds, Story.StoryStatus status);
-    
+
     // Admin filtering methods
     Page<Story> findByStatus(Story.StoryStatus status, Pageable pageable);
-    
+
     Page<Story> findByLanguage(String language, Pageable pageable);
-    
+
     @Query("{'title': { $regex: ?0, $options: 'i' }}")
     Page<Story> findByTitleContaining(String title, Pageable pageable);
-    
+
     Page<Story> findByUserId(String userId, Pageable pageable);
-    
+
     Page<Story> findByIdIn(List<String> storyIds, Pageable pageable);
-    
+
     // Find story by single ID with pagination
     @Query("{'_id': ?0}")
     Page<Story> findByIdWithPagination(String storyId, Pageable pageable);
-    
+
     // Find stories by status and language
     Page<Story> findByStatusAndLanguage(Story.StoryStatus status, String language, Pageable pageable);
-    
+
     // Find stories by status and title containing
     @Query("{'status': ?0, 'title': { $regex: ?1, $options: 'i' }}")
     Page<Story> findByStatusAndTitleContaining(Story.StoryStatus status, String title, Pageable pageable);
-    
+
     // Find stories by status and user ID
     Page<Story> findByStatusAndUserId(Story.StoryStatus status, String userId, Pageable pageable);
-    
+
     // Find stories by language and title containing
     @Query("{'language': ?0, 'title': { $regex: ?1, $options: 'i' }}")
     Page<Story> findByLanguageAndTitleContaining(String language, String title, Pageable pageable);
-    
+
     // Find stories by language and user ID
     Page<Story> findByLanguageAndUserId(String language, String userId, Pageable pageable);
-    
+
     // Find stories by title containing and user ID
     @Query("{'title': { $regex: ?0, $options: 'i' }, 'userId': ?1}")
     Page<Story> findByTitleContainingAndUserId(String title, String userId, Pageable pageable);
-    
+
     // Find stories by status, language and title containing
     @Query("{'status': ?0, 'language': ?1, 'title': { $regex: ?2, $options: 'i' }}")
-    Page<Story> findByStatusAndLanguageAndTitleContaining(Story.StoryStatus status, String language, String title, Pageable pageable);
-    
+    Page<Story> findByStatusAndLanguageAndTitleContaining(Story.StoryStatus status, String language, String title,
+            Pageable pageable);
+
     // Find stories by status, language and user ID
-    Page<Story> findByStatusAndLanguageAndUserId(Story.StoryStatus status, String language, String userId, Pageable pageable);
-    
+    Page<Story> findByStatusAndLanguageAndUserId(Story.StoryStatus status, String language, String userId,
+            Pageable pageable);
+
     // Find stories by status, title containing and user ID
     @Query("{'status': ?0, 'title': { $regex: ?1, $options: 'i' }, 'userId': ?2}")
-    Page<Story> findByStatusAndTitleContainingAndUserId(Story.StoryStatus status, String title, String userId, Pageable pageable);
-    
+    Page<Story> findByStatusAndTitleContainingAndUserId(Story.StoryStatus status, String title, String userId,
+            Pageable pageable);
+
     // Find stories by language, title containing and user ID
     @Query("{'language': ?0, 'title': { $regex: ?1, $options: 'i' }, 'userId': ?2}")
-    Page<Story> findByLanguageAndTitleContainingAndUserId(String language, String title, String userId, Pageable pageable);
-    
+    Page<Story> findByLanguageAndTitleContainingAndUserId(String language, String title, String userId,
+            Pageable pageable);
+
     // Find stories by all filters except storyIds
     @Query("{'status': ?0, 'language': ?1, 'title': { $regex: ?2, $options: 'i' }, 'userId': ?3}")
-    Page<Story> findByStatusAndLanguageAndTitleContainingAndUserId(Story.StoryStatus status, String language, String title, String userId, Pageable pageable);
-    
+    Page<Story> findByStatusAndLanguageAndTitleContainingAndUserId(Story.StoryStatus status, String language,
+            String title, String userId, Pageable pageable);
+
     // Count methods for admin statistics
     long countByStatus(Story.StoryStatus status);
-    
+
     long countByCreatedAtAfter(LocalDateTime date);
-    
+
     // Date range methods for dashboard statistics
     long countByCreatedAtBetween(LocalDateTime fromDate, LocalDateTime toDate);
-    
+
     long countByStatusAndCreatedAtBetween(Story.StoryStatus status, LocalDateTime fromDate, LocalDateTime toDate);
-    
+
     List<Story> findByCreatedAtBetween(LocalDateTime fromDate, LocalDateTime toDate);
-    
+
     // Count stories by user ID
     long countByUserId(String userId);
-    
+
     // Count all user stories (excluding FAILED and REJECTED)
     @Query(value = "{'userId': ?0, 'status': {$nin: ['FAILED', 'REJECTED']}}", count = true)
     long countByUserIdAndStatusNotIn(String userId);
-    
+
     // Check if user has an active story with UPLOADED creation type
-    boolean existsByUserIdAndStatusAndCreationType(String userId, Story.StoryStatus status, Story.CreationType creationType);
-    
-    // Find stories by creation type and status ordered by creation date (for voice stories)
-    Page<Story> findByCreationTypeAndStatusOrderByCreatedAtDesc(Story.CreationType creationType, Story.StoryStatus status, Pageable pageable);
-    
-    // Find stories by creation type, status and language ordered by creation date (for voice stories with language filter)
-    Page<Story> findByCreationTypeAndStatusAndLanguageOrderByCreatedAtDesc(Story.CreationType creationType, Story.StoryStatus status, String language, Pageable pageable);
-} 
+    boolean existsByUserIdAndStatusAndCreationType(String userId, Story.StoryStatus status,
+            Story.CreationType creationType);
+
+    // Find stories by creation type and status ordered by creation date (for voice
+    // stories)
+    Page<Story> findByCreationTypeAndStatusOrderByCreatedAtDesc(Story.CreationType creationType,
+            Story.StoryStatus status, Pageable pageable);
+
+    // Find stories by creation type, status and language ordered by creation date
+    // (for voice stories with language filter)
+    Page<Story> findByCreationTypeAndStatusAndLanguageOrderByCreatedAtDesc(Story.CreationType creationType,
+            Story.StoryStatus status, String language, Pageable pageable);
+
+    // Find stories by status and category
+    Page<Story> findByStatusAndCategory(Story.StoryStatus status, Story.Category category, Pageable pageable);
+
+    // Find stories by status, language and category
+    Page<Story> findByStatusAndLanguageAndCategory(Story.StoryStatus status, String language,
+            Story.Category category, Pageable pageable);
+
+    // Find stories by creation type, status and category ordered by creation date
+    Page<Story> findByCreationTypeAndStatusAndCategoryOrderByCreatedAtDesc(Story.CreationType creationType,
+            Story.StoryStatus status, Story.Category category, Pageable pageable);
+
+    // Find stories by creation type, status, language and category ordered by
+    // creation date
+    Page<Story> findByCreationTypeAndStatusAndLanguageAndCategoryOrderByCreatedAtDesc(
+            Story.CreationType creationType, Story.StoryStatus status, String language,
+            Story.Category category, Pageable pageable);
+
+    // Find similar stories by status and tags, excluding current story
+    Page<Story> findByStatusAndTagsInAndIdNot(Story.StoryStatus status, List<String> tags, String excludeId,
+            Pageable pageable);
+
+    // Find similar stories by status, language and tags, excluding current story
+    Page<Story> findByStatusAndLanguageAndTagsInAndIdNot(Story.StoryStatus status, String language, List<String> tags,
+            String excludeId, Pageable pageable);
+}

@@ -12,4 +12,5 @@ import lombok.NoArgsConstructor;
 public class WrittenStoryRequest {
     private String storyText;
     private String language;
-} 
+    private String category;
+}

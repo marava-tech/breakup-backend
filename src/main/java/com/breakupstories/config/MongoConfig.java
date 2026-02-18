@@ -62,8 +62,8 @@ public class MongoConfig {
             StringBuilder sb = new StringBuilder("mongodb://");
             if (hasAuth) {
                 sb.append(URLEncoder.encode(username, StandardCharsets.UTF_8))
-                  .append(":").append(URLEncoder.encode(password, StandardCharsets.UTF_8))
-                  .append("@");
+                        .append(":").append(URLEncoder.encode(password, StandardCharsets.UTF_8))
+                        .append("@");
             }
             sb.append(host).append(":").append(port).append("/").append(getDatabase());
             sb.append("?");
@@ -78,7 +78,14 @@ public class MongoConfig {
         }
 
         MongoClientSettings.Builder builder = MongoClientSettings.builder()
-                .applyConnectionString(new ConnectionString(connectionString));
+                .applyConnectionString(new ConnectionString(connectionString))
+                .applyToConnectionPoolSettings(poolBuilder -> poolBuilder
+                        .maxSize(50)
+                        .minSize(10)
+                        .maxWaitTime(2, java.util.concurrent.TimeUnit.SECONDS)
+                        .maxConnectionIdleTime(60, java.util.concurrent.TimeUnit.SECONDS)
+                        .maxConnectionLifeTime(120, java.util.concurrent.TimeUnit.SECONDS));
+
         if ("secondaryPreferred".equalsIgnoreCase(readPreference)) {
             builder.readPreference(ReadPreference.secondaryPreferred());
         }
@@ -96,4 +103,4 @@ public class MongoConfig {
     public MongoTemplate mongoTemplate() {
         return new MongoTemplate(mongoDatabaseFactory());
     }
-} 
+}

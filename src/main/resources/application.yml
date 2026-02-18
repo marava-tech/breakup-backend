@@ -3,10 +3,10 @@ spring:
     name: breakup-stories-api
   profiles:
     active: prod
-  # Virtual threads (requires Java 21+). Enable when upgraded from Java 17.
+  # Virtual threads (Java 21 enabled)
   threads:
     virtual:
-      enabled: ${SPRING_THREADS_VIRTUAL_ENABLED:false}
+      enabled: ${SPRING_THREADS_VIRTUAL_ENABLED:true}
 
   # Timezone configuration for Indian Standard Time
   # Jackson configuration is handled in JacksonConfig.java
@@ -40,8 +40,8 @@ spring:
   mail:
     host: ${BREAKUP_MAIL_HOST:smtp.gmail.com}
     port: ${BREAKUP_MAIL_PORT:587}
-    username: ${BREAKUP_MAIL_USERNAME:marava.technologies@gmail.com}
-    password: ${BREAKUP_MAIL_PASSWORD:uxjauijoxdxthmpo}
+    username: ${BREAKUP_MAIL_USERNAME:}
+    password: ${BREAKUP_MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
@@ -66,7 +66,7 @@ server:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:rA3jPjK6o0IBkSyKXZ8OEwTbU5z6a4NE2Kq+dfS2A3k=}
+  secret: ${JWT_SECRET:}
   expiration: 2592000000 # 30 days in milliseconds
 
 
@@ -128,6 +128,30 @@ management:
 # Cloudinary Configuration for Breakup Stories
 app:
   cloudinary:
-    cloud-name: ${BREAKUP_CLOUDINARY_CLOUD_NAME:dhssmiyoc}
-    api-key: ${BREAKUP_CLOUDINARY_API_KEY:177531384514114}
-    api-secret: ${BREAKUP_CLOUDINARY_API_SECRET:EDGc-oLd1WEpwWav_GYeugZHaTo}
+    cloud-name: ${BREAKUP_CLOUDINARY_CLOUD_NAME:}
+    api-key: ${BREAKUP_CLOUDINARY_API_KEY:}
+    api-secret: ${BREAKUP_CLOUDINARY_API_SECRET:}
+
+# Google Cloud Configuration for AI Processing
+google:
+  cloud:
+    project-id: ${GOOGLE_CLOUD_PROJECT_ID:breakup-stories-464019}
+    credentials:
+      path: ${GOOGLE_CLOUD_CREDENTIALS_PATH:classpath:breakup-stories-464019-095fa901b79d.json}
+  speech:
+    supported-languages:
+      te: "Telugu"
+      hi: "Hindi"
+      en: "English"
+      ta: "Tamil"
+      kn: "Kannada"
+      ml: "Malayalam"
+
+# OpenAI Configuration for AI Processing
+openai:
+  api:
+    key: ${OPENAI_API_KEY:}
+    base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+    model: ${OPENAI_MODEL:gpt-4o}
+    max-tokens: ${OPENAI_MAX_TOKENS:2048}
+    temperature: ${OPENAI_TEMPERATURE:0.7}

@@ -1,0 +1,48 @@
+BACKEND — Development Rules
+Architecture Rules
+
+- Keep APIs stateless.
+- Do not introduce unnecessary microservices.
+- Do not add complex aggregation pipelines unless justified.
+- Prefer simple enum categories over scoring systems.
+- Keep story model audio-first.
+
+Data Rules
+
+- Guest users must never be persisted.
+- Listening progress must use upsert logic.
+- Mark story complete when progress ≥ 90%.
+- Increment play count only after 10 seconds.
+- Avoid storing redundant counters unless required.
+
+API Rules
+
+- Use cursor-based pagination only.
+- Keep response payload minimal.
+- Do not return unused metadata.
+- Avoid nested heavy objects in feed responses.
+- Maintain consistent response envelope format.
+
+Performance Rules
+
+- All feed queries must be indexed (language, category, createdAt).
+- Avoid N+1 query patterns.
+- Keep response time target under 300ms.
+- Avoid blocking operations in request cycle.
+- Use async processing for non-critical updates.
+
+Scope Discipline Rules
+
+- Do not reintroduce coins or withdrawal logic.
+- Do not add referral-based features.
+- Do not overbuild recommendation engine early.
+- Keep AI consoling logic optional and decoupled.
+- Every new feature must improve retention or listening time.
+
+These rules will prevent AI from:
+
+- Overcomplicating architecture
+- Reintroducing removed systems
+- Adding flashy UI noise
+- Building scale features before retention
+

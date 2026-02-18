@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "breakup-stories-464019",
+  "private_key_id": "095fa901b79db5d19e257e3a08ba505f558f7797",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDEXY0ZPHaf93HW\n/sO0gIvJSuKlHaK8erWfY5j292gHvGGqEsTfQQhlsv7uDDD7wrmOD8OxMjM/deMg\nPyS4E5MvjWmLvRDVyp71U8gx9WlKlhQFA+J9C8qK4j+gWXdRNKiLZc0SY65+AjQ5\ne7xqlPi1kAgjz4So5Y4bKgEXCFSSZ2pYW15S+D6LsdwFna70ezZlEaz4vQcC1BR6\ndTfPSpAs4O6nU9D791dIW2A0Ib62wIhaurgKsvaO6vQPEAP/9DZ6deesWG1hygOS\nN7BTQ5f7SlP5giAh5f8LOgucDcKHmDSrKRfbGFDBi5fNQararAB7Bz/pL8oOU5eN\novrCuQK1AgMBAAECggEAGRmAJJ6m5xGg+oM8DsFznLo2uDZOi9r/hi0b6016faql\nrTCS+5p7cUxs646hYDzmrPL055xsEouGCaQolGLkKGrh99ul4D3zDZa0+zXMTJ1c\nV7vEYol0TUZYLa3h435goNjVWqllL3QmqsZXMiRymfqcH7+xzEjzXiODWidVcBUQ\nebLQfBpkiWYeSXHUbrqkKbpcRGfZV89Z9ZeJ+PJeDdvbwF80WaY6v1w56M1KPf+g\nhZ5TgtVZFQNUcTDp5ozrJr11tWi+xyXoOlPpULVYrnXQ3FLa8b2HsqjdON2X6H3o\nMmWzelMTq56yDdlKWx+59u523jm7Nvhy6OgMHHpYjQKBgQDxGY2l/uFmlnGCVyGs\nQizL4+hwa26Rc/tM6sgdYhBmt2doI8F22C9oher3azNbTw5d00jY1xqdC6BymYYr\npn9h1XgiVi/Vvr1yskVUGhVFmRXpBVIQCS42uUHEk1dgPbqAXZ6Hno2oaGxEt1PB\n+zEldy8d4SLorPfbVSl1FG5S3wKBgQDQgEEETYXJcs1Ffq9qfcWKrDwH716aPYF6\nH8/VIfKm3qJGDmA+D0nE91bKunhlMwPGj2zyoftOGl3OPXsU9025HthpuNpiSFtm\nHUavkl1u5uFoSneIwl8tEf2o3UrhmSyuNlGiW5LRN0gKTlUS0aoRXGTGi3B9+mmV\nH6lROVsQ6wKBgA0jGk/IMpn3apnyi3gqZux5L6oogG7WhgPr6xmGxWQDbFQFVr5W\nC0dDvMjcg4DfLuY35AlEt0OFZam46dGpEdnP2ursDVE1QndkdViezzfqnoIC8zTC\ne00qDQZcDO/GjUn/T+sN3aQmhHe+EYdJW6Ux+FRFdzR8cEj4O/kQMu67AoGACibk\ng4gexoM/eW3ErsO29ZyTQ7OlAI+UGVUpMnB3tyZJ8m1KxFrMNbnxUOepawwD2Awt\nutamPNRN0vftYUT1VNkqomMsxvJM+Pjd8ziGMhstyH0vusn0BmbE2g8EUV267jSY\n3vXkfSla6Z2MyODKjhPYmE47yPaDY45qGRlY1McCgYEApsN27l2q2jkRUSYjvS0G\nRb6Fuq1TNoBLjcErlFY+cKbxCC6EXjGkCxpDg5NqFtnbKgkwgtRUrucTYdTwA/s1\nXnePJRplzAYBIg90kxm4FZcYbLcRJusa3Pf5xdlGgfw/cz1vQ1iGkN8ndTlFB6dE\n5AwiyAJPgpgWVgLwFM2QYyI=\n-----END PRIVATE KEY-----\n",
+  "client_email": "speech-to-text-service@breakup-stories-464019.iam.gserviceaccount.com",
+  "client_id": "109204494907517651982",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/speech-to-text-service%40breakup-stories-464019.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
