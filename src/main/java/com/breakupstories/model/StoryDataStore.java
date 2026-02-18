@@ -13,6 +13,9 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -28,21 +31,37 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(collection = "story_data_store")
+@CompoundIndexes({
+    @CompoundIndex(name = "idx_processing_status_created", def = "{'processingStatus': 1, 'createdAt': 1}"),
+    @CompoundIndex(name = "idx_user_processing_status", def = "{'userId': 1, 'processingStatus': 1}"),
+    @CompoundIndex(name = "idx_lang_processing_status", def = "{'language': 1, 'processingStatus': 1}"),
+    @CompoundIndex(name = "idx_conversion_pending_created", def = "{'isConversionPending': 1, 'createdAt': 1}"),
+    @CompoundIndex(name = "idx_story_processing", def = "{'storyId': 1, 'processingStatus': 1}")
+})
 public class StoryDataStore {
     
     @Id
     private String id;
-    
+
+    @Indexed
     private String storyId;
 
     // Upload metadata - moved from Story
     private Map<String, String> uploadMetadata;
-    
+
     // Search index fields
+    @Indexed
     private String title;
+
+    @Indexed
     private String userId;
+
+    @Indexed
     private String language;
+
     private StoryMetadata metadata;
+
+    @Indexed
     private String searchText;
 
     // Audio information
@@ -58,8 +77,9 @@ public class StoryDataStore {
     
     // Images response
     private ImagesResponse imagesResponse;
-    
+
     // Processing status for AI steps
+    @Indexed
     private ProcessingStatus processingStatus;
     
     // Error tracking
@@ -100,7 +120,16 @@ public class StoryDataStore {
         FAILED,            // Processing failed
         REJECTED          // Story was rejecte
     }
-    
+
+    /**
+     * Check if a processing status is terminal (cannot be changed)
+     */
+    public static boolean isTerminalStatus(ProcessingStatus status) {
+        return status == ProcessingStatus.FAILED ||
+               status == ProcessingStatus.REJECTED ||
+               status == ProcessingStatus.COMPLETED;
+    }
+
     /**
      * Generate search text from all searchable fields
      */

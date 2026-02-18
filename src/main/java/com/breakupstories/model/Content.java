@@ -10,12 +10,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Content {
-    
+
+    private String id;
     private ContentType type;
     private String data;
     private Integer orderIndex;
-    
+
     public enum ContentType {
         TEXT, IMAGE, VIDEO
     }
-} 
+}

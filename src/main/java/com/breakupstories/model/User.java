@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -19,29 +20,40 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Document(collection = "users")
 public class User {
-    
+
     @Id
     private String id;
-    
+
     private String name;
+
+    @Indexed(unique = true)
     private String email;
+
     private GENDER gender;
     private Integer age;
     private String profileImageUrl;
     private String preferredStoryLanguage;
+
+    @Indexed(unique = true)
     private String referralCode;
+
     private String referredBy;
+
+    @Indexed
     private String deviceId; // Android device ID for referral tracking
-    
+
     @Builder.Default
     private Role role = Role.USER;
-    
+
     @Builder.Default
     private Boolean isActive = true;
-    
+
+    private java.util.Map<String, Double> categoryPreferences;
+    private java.util.Map<String, Double> languagePreferences;
+
     @CreatedDate
     private LocalDateTime createdAt;
-    
+
     @LastModifiedDate
     private LocalDateTime updatedAt;
-} 
+}

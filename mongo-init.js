@@ -19,6 +19,7 @@ db.createUser({
 // Create collections with proper indexes
 db.createCollection('users');
 db.createCollection('stories');
+db.createCollection('listening_progress');
 db.createCollection('likes');
 db.createCollection('comments');
 db.createCollection('bookmarks');
@@ -33,10 +34,15 @@ db.users.createIndex({ "email": 1 }, { unique: true });
 db.users.createIndex({ "createdAt": -1 });
 db.users.createIndex({ "preferredStoryLanguage": 1 });
 
+// Stories Indexes
 db.stories.createIndex({ "userId": 1 });
 db.stories.createIndex({ "status": 1 });
-db.stories.createIndex({ "metadata.language": 1 });
+db.stories.createIndex({ "language": 1 });
+db.stories.createIndex({ "category": 1 });
+db.stories.createIndex({ "tags": 1 });
+db.stories.createIndex({ "creationType": 1 });
 db.stories.createIndex({ "viewCount": -1 });
+db.stories.createIndex({ "playCount": -1 });
 db.stories.createIndex({ "createdAt": -1 });
 
 // Compound indexes for common query patterns
@@ -49,12 +55,53 @@ db.stories.createIndex(
   { name: "idx_stories_status_views" }
 );
 db.stories.createIndex(
+  { "status": 1, "playCount": -1 },
+  { name: "idx_stories_status_plays" }
+);
+db.stories.createIndex(
   { "status": 1, "createdAt": -1 },
   { name: "idx_stories_status_date" }
 );
 db.stories.createIndex(
   { "userId": 1, "status": 1, "createdAt": -1 },
   { name: "idx_stories_user_status_date" }
+);
+
+// New compound indexes for feed and filtering
+db.stories.createIndex(
+  { "status": 1, "category": 1, "createdAt": -1 },
+  { name: "idx_stories_status_category_date" }
+);
+db.stories.createIndex(
+  { "status": 1, "language": 1, "category": 1, "createdAt": -1 },
+  { name: "idx_stories_status_lang_category_date" }
+);
+db.stories.createIndex(
+  { "creationType": 1, "status": 1, "createdAt": -1 },
+  { name: "idx_stories_creation_status_date" }
+);
+db.stories.createIndex(
+  { "creationType": 1, "status": 1, "language": 1, "createdAt": -1 },
+  { name: "idx_stories_creation_status_lang_date" }
+);
+// For similar stories (tags)
+db.stories.createIndex(
+  { "status": 1, "tags": 1 },
+  { name: "idx_stories_status_tags" }
+);
+db.stories.createIndex(
+  { "status": 1, "language": 1, "tags": 1 },
+  { name: "idx_stories_status_lang_tags" }
+);
+
+// Listening Progress Indexes
+db.listening_progress.createIndex(
+  { "userId": 1, "storyId": 1 },
+  { unique: true, name: "user_story_idx" }
+);
+db.listening_progress.createIndex(
+  { "userId": 1, "updatedAt": -1 },
+  { name: "user_updated_idx" }
 );
 
 db.likes.createIndex({ "userId": 1 });
@@ -121,6 +168,6 @@ print('Collections and indexes created.');
 
 print('Updating user role to ADMIN');
 db.users.updateOne(
-    { email: "kinneramadhu123@gmail.com" },
-    { $set: { role: "ADMIN" } }
+  { email: "kinneramadhu123@gmail.com" },
+  { $set: { role: "ADMIN" } }
 ); 
