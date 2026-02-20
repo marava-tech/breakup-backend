@@ -16,6 +16,7 @@ import com.breakupstories.repository.CommentRepository;
 import com.breakupstories.repository.CoinHistoryRepository;
 import com.breakupstories.dto.CoinHistoryResponse;
 // import com.breakupstories.util.ApplicationContextProvider;
+import com.breakupstories.util.LanguageUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
@@ -93,7 +94,7 @@ public class UserService implements UserDetailsService {
                 .gender(request.getGender())
                 .age(request.getAge())
                 .profileImageUrl(defaultProfileImageUrl)
-                .preferredStoryLanguage(request.getPreferredStoryLanguage())
+                .preferredStoryLanguage(LanguageUtils.normalizeLanguage(request.getPreferredStoryLanguage()))
                 .role(role)
                 .deviceId(request.getDeviceId()) // Store device ID for referral tracking
                 .build();
@@ -125,8 +126,8 @@ public class UserService implements UserDetailsService {
     }
 
     @Caching(evict = {
-        @CacheEvict(value = "user-entity", allEntries = true),
-        @CacheEvict(value = "user-dto", allEntries = true)
+            @CacheEvict(value = "user-entity", allEntries = true),
+            @CacheEvict(value = "user-dto", allEntries = true)
     })
     public UserResponse updateProfileImage(String userEmail, MultipartFile imageFile) {
         log.info("Updating profile image for user: {}", userEmail);
@@ -214,8 +215,8 @@ public class UserService implements UserDetailsService {
     }
 
     @Caching(evict = {
-        @CacheEvict(value = "user-entity", allEntries = true),
-        @CacheEvict(value = "user-dto", allEntries = true)
+            @CacheEvict(value = "user-entity", allEntries = true),
+            @CacheEvict(value = "user-dto", allEntries = true)
     })
     public UserResponse updateUser(String userId, UserRequest request) {
         User user = userRepository.findById(userId)
@@ -225,7 +226,7 @@ public class UserService implements UserDetailsService {
         user.setEmail(request.getEmail());
         user.setGender(request.getGender());
         user.setAge(request.getAge());
-        user.setPreferredStoryLanguage(request.getPreferredStoryLanguage());
+        user.setPreferredStoryLanguage(LanguageUtils.normalizeLanguage(request.getPreferredStoryLanguage()));
 
         // Update role if provided
         if (request.getRole() != null) {
@@ -237,8 +238,8 @@ public class UserService implements UserDetailsService {
     }
 
     @Caching(evict = {
-        @CacheEvict(value = "user-entity", allEntries = true),
-        @CacheEvict(value = "user-dto", allEntries = true)
+            @CacheEvict(value = "user-entity", allEntries = true),
+            @CacheEvict(value = "user-dto", allEntries = true)
     })
     public void deleteUser(String userId) {
         if (!userRepository.existsById(userId)) {
@@ -261,8 +262,8 @@ public class UserService implements UserDetailsService {
     }
 
     @Caching(evict = {
-        @CacheEvict(value = "user-entity", allEntries = true),
-        @CacheEvict(value = "user-dto", allEntries = true)
+            @CacheEvict(value = "user-entity", allEntries = true),
+            @CacheEvict(value = "user-dto", allEntries = true)
     })
     public UserResponse updatePreferredStoryLanguage(String userEmail, String preferredStoryLanguage) {
         log.info("Updating preferred story language for user: {} -> {}", userEmail, preferredStoryLanguage);
@@ -270,7 +271,7 @@ public class UserService implements UserDetailsService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", userEmail));
 
-        user.setPreferredStoryLanguage(preferredStoryLanguage);
+        user.setPreferredStoryLanguage(LanguageUtils.normalizeLanguage(preferredStoryLanguage));
         User updatedUser = userRepository.save(user);
 
         log.info("Preferred story language updated successfully for user: {} -> {}",
