@@ -15,6 +15,7 @@ import com.breakupstories.service.ListeningProgressService;
 import com.breakupstories.service.StoryService;
 import com.breakupstories.service.UserService;
 
+import com.breakupstories.util.LanguageUtils;
 import com.breakupstories.util.RequestContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -133,10 +134,11 @@ public class StoryController {
             userId = userService.getUserEntityByEmail(authentication.getName()).getId();
         }
 
+        String normalizedLanguage = LanguageUtils.normalizeLanguage(language);
         if (cursor != null && !cursor.isBlank()) {
-            response = storyService.getStoriesWithCursor(userId, language, category, cursor, size);
+            response = storyService.getStoriesWithCursor(userId, normalizedLanguage, category, cursor, size);
         } else {
-            response = storyService.getStories(userId, page, size, language, category);
+            response = storyService.getStories(userId, page, size, normalizedLanguage, category);
         }
         return ResponseEntity.ok(response);
     }
@@ -152,7 +154,8 @@ public class StoryController {
         if (authentication != null && authentication.isAuthenticated()) {
             userId = userService.getUserEntityByEmail(authentication.getName()).getId();
         }
-        return ResponseEntity.ok(storyService.getFeaturedStories(userId, language, page, size));
+        String normalizedLanguage = LanguageUtils.normalizeLanguage(language);
+        return ResponseEntity.ok(storyService.getFeaturedStories(userId, normalizedLanguage, page, size));
     }
 
     @GetMapping("/most-listened")
@@ -166,7 +169,8 @@ public class StoryController {
         if (authentication != null && authentication.isAuthenticated()) {
             userId = userService.getUserEntityByEmail(authentication.getName()).getId();
         }
-        return ResponseEntity.ok(storyService.getMostListenedStories(userId, language, page, size));
+        String normalizedLanguage = LanguageUtils.normalizeLanguage(language);
+        return ResponseEntity.ok(storyService.getMostListenedStories(userId, normalizedLanguage, page, size));
     }
 
     @GetMapping("/type")
@@ -191,7 +195,9 @@ public class StoryController {
             String userPreferredLanguage = user.getPreferredStoryLanguage();
 
             // Use provided language or user's preferred language
-            String filterLanguage = (language != null && !language.trim().isEmpty()) ? language : userPreferredLanguage;
+            String filterLanguage = (language != null && !language.trim().isEmpty())
+                    ? LanguageUtils.normalizeLanguage(language)
+                    : userPreferredLanguage;
 
             switch (searchType) {
                 case FOR_YOU -> {
@@ -241,7 +247,8 @@ public class StoryController {
                 }
                 case LANGUAGE -> {
                     if (language != null && !language.trim().isEmpty()) {
-                        response = storyService.getStoriesByLanguage(language, userId, page, size);
+                        response = storyService.getStoriesByLanguage(LanguageUtils.normalizeLanguage(language), userId,
+                                page, size);
                     } else {
                         response = storyService.getStories(userId, page, size);
                     }
@@ -281,14 +288,16 @@ public class StoryController {
                 }
                 case RECOMMENDATION, FOR_YOU -> {
                     if (language != null && !language.trim().isEmpty()) {
-                        response = storyService.getTrendingStoriesByLanguage(language, page, size);
+                        response = storyService.getTrendingStoriesByLanguage(LanguageUtils.normalizeLanguage(language),
+                                page, size);
                     } else {
                         response = storyService.getTrendingStories(page, size);
                     }
                 }
                 case TRENDING -> {
                     if (language != null && !language.trim().isEmpty()) {
-                        response = storyService.getTrendingStoriesByLanguage(language, page, size);
+                        response = storyService.getTrendingStoriesByLanguage(LanguageUtils.normalizeLanguage(language),
+                                page, size);
                     } else {
                         response = storyService.getTrendingStories(page, size);
                     }
@@ -304,28 +313,32 @@ public class StoryController {
                 }
                 case VOICE -> {
                     if (language != null && !language.trim().isEmpty()) {
-                        response = storyService.getVoiceStoriesByLanguage(language, page, size);
+                        response = storyService.getVoiceStoriesByLanguage(LanguageUtils.normalizeLanguage(language),
+                                page, size);
                     } else {
                         response = storyService.getVoiceStories(page, size);
                     }
                 }
                 case LANGUAGE -> {
                     if (language != null && !language.trim().isEmpty()) {
-                        response = storyService.getStoriesByLanguage(language, page, size);
+                        response = storyService.getStoriesByLanguage(LanguageUtils.normalizeLanguage(language), page,
+                                size);
                     } else {
                         response = storyService.getStories(page, size);
                     }
                 }
                 case GENERAL -> {
                     if (cursor != null && !cursor.isBlank()) {
-                        response = storyService.getStoriesWithCursor(null, language, category, cursor, size);
+                        response = storyService.getStoriesWithCursor(null, LanguageUtils.normalizeLanguage(language),
+                                category, cursor, size);
                     } else {
                         response = storyService.getStories(page, size);
                     }
                 }
                 default -> {
                     if (cursor != null && !cursor.isBlank()) {
-                        response = storyService.getStoriesWithCursor(null, language, category, cursor, size);
+                        response = storyService.getStoriesWithCursor(null, LanguageUtils.normalizeLanguage(language),
+                                category, cursor, size);
                     } else {
                         response = storyService.getStories(page, size);
                     }
@@ -464,9 +477,11 @@ public class StoryController {
             if (authentication != null && authentication.isAuthenticated()) {
                 String email = authentication.getName();
                 String userId = userService.getUserEntityByEmail(email).getId();
-                response = storyService.searchStoriesByContent(searchContent, language, userId, page, size);
+                response = storyService.searchStoriesByContent(searchContent, LanguageUtils.normalizeLanguage(language),
+                        userId, page, size);
             } else {
-                response = storyService.searchStoriesByContent(searchContent, language, null, page, size);
+                response = storyService.searchStoriesByContent(searchContent, LanguageUtils.normalizeLanguage(language),
+                        null, page, size);
             }
 
             log.info("Search completed successfully. Found {} results [RequestID: {}]",
@@ -510,7 +525,8 @@ public class StoryController {
             userId = userService.getUserEntityByEmail(authentication.getName()).getId();
         }
 
-        StoryResponse nextStory = storyService.getNextStory(currentId, userId, language);
+        StoryResponse nextStory = storyService.getNextStory(currentId, userId,
+                LanguageUtils.normalizeLanguage(language));
         return ResponseEntity.ok(nextStory);
     }
 

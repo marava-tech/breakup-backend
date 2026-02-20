@@ -30,6 +30,9 @@ public class TranscriptionService {
     private static final Logger log = LoggerFactory.getLogger(TranscriptionService.class);
     private final StoryDataStoreRepository storyRepository;
 
+    // Fixed GCS bucket for temporary audio uploads — must exist in the project
+    private static final String GCS_AUDIO_BUCKET = "breakup-stories-audio-temp";
+
     // Language mapping for Indian languages
     private static final Map<String, String> LANGUAGE_MAPPING = Map.of(
             "te", "te-IN", // Telugu
@@ -318,7 +321,8 @@ public class TranscriptionService {
                 .setEnableWordTimeOffsets(true)
                 .setEnableWordConfidence(true)
                 .setModel("latest_long")
-                .setUseEnhanced(true);
+                .setUseEnhanced(true)
+                .setMetadata(buildRecognitionMetadata());
 
         // Add alternative language hints for better detection
         if (language == null) {
@@ -330,7 +334,109 @@ public class TranscriptionService {
                     .addAlternativeLanguageCodes("en-IN");
         }
 
+        // Add domain-specific phrase hints to improve recognition accuracy
+        buildSpeechContexts(language).forEach(ctx -> configBuilder.addSpeechContexts(ctx));
+
         return configBuilder.build();
+    }
+
+    /**
+     * Build recognition metadata to help Google's model understand the recording context
+     */
+    private RecognitionMetadata buildRecognitionMetadata() {
+        return RecognitionMetadata.newBuilder()
+                .setInteractionType(RecognitionMetadata.InteractionType.DICTATION)
+                .setMicrophoneDistance(RecognitionMetadata.MicrophoneDistance.NEARFIELD)
+                .setRecordingDeviceType(RecognitionMetadata.RecordingDeviceType.SMARTPHONE)
+                .build();
+    }
+
+    /**
+     * Build language-specific speech context phrase hints.
+     * Boosting domain vocabulary (emotional words, Indian names, cities) significantly
+     * reduces transcription errors for love/breakup story content.
+     */
+    private java.util.List<SpeechContext> buildSpeechContexts(String language) {
+        java.util.List<SpeechContext> contexts = new java.util.ArrayList<>();
+
+        // Common Indian city names — frequently mentioned in stories
+        contexts.add(SpeechContext.newBuilder()
+                .addPhrases("Hyderabad").addPhrases("Bangalore").addPhrases("Chennai")
+                .addPhrases("Mumbai").addPhrases("Delhi").addPhrases("Vizag")
+                .addPhrases("Vijayawada").addPhrases("Coimbatore").addPhrases("Mysore")
+                .addPhrases("Kochi").addPhrases("Thiruvananthapuram").addPhrases("Kolkata")
+                .addPhrases("Jaipur").addPhrases("Pune").addPhrases("Ahmedabad")
+                .setBoost(5.0f)
+                .build());
+
+        // Language-specific emotional vocabulary and common character names
+        switch (language != null ? language : "en") {
+            case "te":
+                contexts.add(SpeechContext.newBuilder()
+                        .addPhrases("ప్రేమ").addPhrases("హృదయం").addPhrases("జీవితం").addPhrases("దుఃఖం")
+                        .addPhrases("ఆనందం").addPhrases("మనసు").addPhrases("విరహం").addPhrases("ఎడబాటు")
+                        .addPhrases("ఒంటరిగా").addPhrases("కన్నీళ్ళు").addPhrases("ప్రేమించాను").addPhrases("నమ్మకం")
+                        .addPhrases("రాజ్").addPhrases("ప్రియ").addPhrases("అర్జున్").addPhrases("కావ్య")
+                        .addPhrases("సాయి").addPhrases("సంధ్య").addPhrases("రవి").addPhrases("లక్ష్మి")
+                        .addPhrases("హైదరాబాద్").addPhrases("విజయవాడ").addPhrases("విశాఖపట్నం")
+                        .setBoost(10.0f)
+                        .build());
+                break;
+            case "hi":
+                contexts.add(SpeechContext.newBuilder()
+                        .addPhrases("प्यार").addPhrases("दिल").addPhrases("जिंदगी").addPhrases("दर्द")
+                        .addPhrases("आंसू").addPhrases("मोहब्बत").addPhrases("इश्क").addPhrases("जुदाई")
+                        .addPhrases("तन्हा").addPhrases("याद").addPhrases("रोना").addPhrases("बिछड़ना")
+                        .addPhrases("रोहित").addPhrases("प्रिया").addPhrases("अर्जुन").addPhrases("काव्या")
+                        .addPhrases("राज").addPhrases("नीतू").addPhrases("अमित").addPhrases("सीमा")
+                        .addPhrases("दिल्ली").addPhrases("मुंबई").addPhrases("लखनऊ").addPhrases("जयपुर")
+                        .setBoost(10.0f)
+                        .build());
+                break;
+            case "ta":
+                contexts.add(SpeechContext.newBuilder()
+                        .addPhrases("காதல்").addPhrases("இதயம்").addPhrases("வாழ்க்கை").addPhrases("துக்கம்")
+                        .addPhrases("கண்ணீர்").addPhrases("பிரிவு").addPhrases("தனிமை").addPhrases("நினைவு")
+                        .addPhrases("மனசு").addPhrases("உயிர்").addPhrases("வலி").addPhrases("ஆசை")
+                        .addPhrases("கார்த்திக்").addPhrases("தீபிகா").addPhrases("ரமேஷ்").addPhrases("காவ்யா")
+                        .addPhrases("அர்ஜுன்").addPhrases("பிரியா").addPhrases("ராஜ்").addPhrases("லட்சுமி")
+                        .addPhrases("சென்னை").addPhrases("கோயம்புத்தூர்").addPhrases("மதுரை")
+                        .setBoost(10.0f)
+                        .build());
+                break;
+            case "kn":
+                contexts.add(SpeechContext.newBuilder()
+                        .addPhrases("ಪ್ರೀತಿ").addPhrases("ಹೃದಯ").addPhrases("ಜೀವ").addPhrases("ದುಃಖ")
+                        .addPhrases("ಕಣ್ಣೀರು").addPhrases("ಅಗಲಿಕೆ").addPhrases("ಒಂಟಿ").addPhrases("ನೆನಪು")
+                        .addPhrases("ಮನಸ್ಸು").addPhrases("ನೋವು").addPhrases("ಬಯಕೆ").addPhrases("ನಂಬಿಕೆ")
+                        .addPhrases("ರಾಜ್").addPhrases("ಪ್ರಿಯಾ").addPhrases("ಅರ್ಜುನ್").addPhrases("ಕಾವ್ಯ")
+                        .addPhrases("ರವಿ").addPhrases("ಲಕ್ಷ್ಮಿ").addPhrases("ಸಾಯಿ").addPhrases("ಸಂಧ್ಯಾ")
+                        .addPhrases("ಬೆಂಗಳೂರು").addPhrases("ಮೈಸೂರು").addPhrases("ಮಂಗಳೂರು")
+                        .setBoost(10.0f)
+                        .build());
+                break;
+            case "ml":
+                contexts.add(SpeechContext.newBuilder()
+                        .addPhrases("പ്രണയം").addPhrases("ഹൃദയം").addPhrases("ജീവൻ").addPhrases("ദുഃഖം")
+                        .addPhrases("കണ്ണുനീർ").addPhrases("വേർപാട്").addPhrases("ഒറ്റ").addPhrases("ഓർമ്മ")
+                        .addPhrases("മനസ്സ്").addPhrases("വേദന").addPhrases("ആഗ്രഹം").addPhrases("വിശ്വാസം")
+                        .addPhrases("അർജുൻ").addPhrases("ദീപ").addPhrases("രമേഷ്").addPhrases("കാവ്യ")
+                        .addPhrases("രാജ്").addPhrases("ലക്ഷ്മി").addPhrases("സാജൻ").addPhrases("സന്ധ്യ")
+                        .addPhrases("തിരുവനന്തപുരം").addPhrases("കൊച്ചി").addPhrases("കോഴിക്കോട്")
+                        .setBoost(10.0f)
+                        .build());
+                break;
+            default: // English
+                contexts.add(SpeechContext.newBuilder()
+                        .addPhrases("love").addPhrases("heartbreak").addPhrases("breakup").addPhrases("relationship")
+                        .addPhrases("feelings").addPhrases("tears").addPhrases("goodbye").addPhrases("forever")
+                        .addPhrases("loneliness").addPhrases("memories").addPhrases("missing").addPhrases("betrayal")
+                        .addPhrases("trust").addPhrases("cheating").addPhrases("distance").addPhrases("together")
+                        .setBoost(8.0f)
+                        .build());
+        }
+
+        return contexts;
     }
 
     /**
@@ -417,32 +523,21 @@ public class TranscriptionService {
     }
 
     /**
-     * Upload audio to Google Cloud Storage
+     * Upload audio to Google Cloud Storage using a single fixed bucket.
+     * Each file gets a unique object name so concurrent uploads never conflict.
      */
     private String uploadToGcs(File audioFile) throws IOException {
         if (storageClient == null) {
             throw new TranscriptionException("Google Cloud Storage client not initialized.");
         }
 
-        // Generate unique bucket and object names
-        String bucketName = "audio-transcription-" + UUID.randomUUID().toString().substring(0, 8);
-        String objectName = "audio/" + UUID.randomUUID().toString() + ".flac";
+        String objectName = "audio/" + UUID.randomUUID() + ".mp3";
 
-        // Create bucket if it doesn't exist
-        try {
-            storageClient.create(com.google.cloud.storage.BucketInfo.of(bucketName));
-            log.info("Created GCS bucket: {}", bucketName);
-        } catch (Exception e) {
-            log.info("Using existing GCS bucket: {}", bucketName);
-        }
-
-        // Upload the file
-        BlobId blobId = BlobId.of(bucketName, objectName);
+        BlobId blobId = BlobId.of(GCS_AUDIO_BUCKET, objectName);
         BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
-        Blob blob = storageClient.create(blobInfo, Files.readAllBytes(audioFile.toPath()));
+        storageClient.create(blobInfo, Files.readAllBytes(audioFile.toPath()));
 
-        // Generate the GCS URI
-        String gcsUri = "gs://" + bucketName + "/" + objectName;
+        String gcsUri = "gs://" + GCS_AUDIO_BUCKET + "/" + objectName;
         log.info("Uploaded audio to GCS: {}", gcsUri);
 
         return gcsUri;
