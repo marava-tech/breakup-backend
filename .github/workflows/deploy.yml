@@ -51,17 +51,12 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Deploy on server
-        uses: Wandalen/wretry.action@v3
+        uses: appleboy/ssh-action@v1
         with:
-          action: appleboy/ssh-action@v1
-          attempt_limit: 3
-          attempt_delay: 15000
-          with: |
-            host: ${{ secrets.SERVER_HOST }}
-            username: ${{ secrets.SERVER_USER }}
-            key: ${{ secrets.SERVER_SSH_KEY }}
-            timeout: 60s
-            script: |
-              docker compose -f /root/server/services/breakup-backend/docker-compose.yml --env-file /root/server/.env pull breakup-backend
-              docker compose -f /root/server/services/breakup-backend/docker-compose.yml --env-file /root/server/.env up -d --no-deps breakup-backend
-              docker image prune -f
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            docker compose -f /root/server/services/breakup-backend/docker-compose.yml --env-file /root/server/.env pull breakup-backend
+            docker compose -f /root/server/services/breakup-backend/docker-compose.yml --env-file /root/server/.env up -d --no-deps breakup-backend
+            docker image prune -f
