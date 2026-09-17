@@ -24,7 +24,7 @@ public class GmailSender {
             throws MessagingException, UnsupportedEncodingException {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true);
-        helper.setFrom(fromEmail, "Breakup Stories");
+        helper.setFrom(fromEmail, "Heal");
         helper.setTo(to);
         helper.setSubject(subject);
         helper.setText(content, true);

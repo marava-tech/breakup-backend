@@ -63,10 +63,10 @@ public class OTPServiceImpl implements OTPService {
                 <body>
                     <div class="wrapper">
                         <div class="container">
-                            <div class="brand">Breakup Stories</div>
+                            <div class="brand">Heal</div>
                             <div class="content-box">
                                 <h1 class="title">Verification Code</h1>
-                                <p class="subtitle">Use the code below to securely sign in to your account.</p>
+                                <p class="subtitle">Use the code below to securely sign in to your Heal account.</p>
                                 <div class="otp-wrapper">
                                     <p class="otp">%s</p>
                                 </div>
@@ -74,7 +74,7 @@ public class OTPServiceImpl implements OTPService {
                                 <p class="notice">If you didn't request this code, you can safely ignore this email.</p>
                             </div>
                             <div class="footer">
-                                &copy; %s Breakup Stories
+                                &copy; %s Heal &bull; Breakup Recovery & No Contact
                             </div>
                         </div>
                     </div>
@@ -100,7 +100,7 @@ public class OTPServiceImpl implements OTPService {
             var gmailContent = getUnFormattedGmailContent();
             var formattedGmailContent = String.format(gmailContent, otp,
                     TimestampUtil.currentLocalDateTime().getYear());
-            gmailSender.sendGmail(email, "Breakup Stories Verification OTP", formattedGmailContent);
+            gmailSender.sendGmail(email, "Heal - Verification Code", formattedGmailContent);
             log.info("Successfully sent OTP to email: {}", email);
             return true;
         } catch (Exception e) {
