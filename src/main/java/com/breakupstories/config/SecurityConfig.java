@@ -47,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/api-docs/**").permitAll()
                         .requestMatchers("/api/configs/device-configs").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers("/app-ads.txt").permitAll()
 
                         // Stories — public reads (my-stories must come before the wildcard)
                         .requestMatchers(HttpMethod.GET, "/api/stories/my-stories").authenticated()
