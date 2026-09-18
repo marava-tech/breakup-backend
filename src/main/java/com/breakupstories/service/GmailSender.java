@@ -15,19 +15,30 @@ import java.io.UnsupportedEncodingException;
 @Slf4j
 public class GmailSender {
 
-    @Value("${spring.mail.username}")
+    // Separate from SMTP username so a transactional provider (Brevo/Resend/SES) can be swapped in via env.
+    @Value("${BREAKUP_MAIL_FROM:${spring.mail.username}}")
     private String fromEmail;
 
     private final JavaMailSender mailSender;
 
     public void sendGmail(String to, String subject, String content)
             throws MessagingException, UnsupportedEncodingException {
+        sendGmail(to, subject, null, content);
+    }
+
+    /** Sends multipart/alternative (plain + HTML); HTML-only mail scores worse with spam filters. */
+    public void sendGmail(String to, String subject, String plainText, String html)
+            throws MessagingException, UnsupportedEncodingException {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true);
         helper.setFrom(fromEmail, "Heal");
         helper.setTo(to);
         helper.setSubject(subject);
-        helper.setText(content, true);
+        if (plainText != null) {
+            helper.setText(plainText, html);
+        } else {
+            helper.setText(html, true);
+        }
         mailSender.send(message);
         log.info("Gmail sent successfully to {}", to);
     }

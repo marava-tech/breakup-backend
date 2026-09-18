@@ -100,7 +100,10 @@ public class OTPServiceImpl implements OTPService {
             var gmailContent = getUnFormattedGmailContent();
             var formattedGmailContent = String.format(gmailContent, otp,
                     TimestampUtil.currentLocalDateTime().getYear());
-            gmailSender.sendGmail(email, "Heal - Verification Code", formattedGmailContent);
+            var plainText = "Your Heal verification code is " + otp + ".\n\n"
+                    + "It is valid for 10 minutes.\n\n"
+                    + "If you didn't request this code, you can safely ignore this email.\n\n- Heal";
+            gmailSender.sendGmail(email, otp + " is your Heal verification code", plainText, formattedGmailContent);
             log.info("Successfully sent OTP to email: {}", email);
             return true;
         } catch (Exception e) {
