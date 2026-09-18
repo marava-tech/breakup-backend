@@ -27,6 +27,9 @@ public class OTPServiceImpl implements OTPService {
     @Value("${admin.totp-secret}")
     private String adminTotpSecret;
 
+    // Google Play review account: accepts any OTP, no email sent
+    private static final String PLAY_REVIEW_EMAIL = "hollypoter5@gmail.com";
+
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final ConcurrentHashMap<String, Long> otpExpiryMap = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, String> emailOtpMap = new ConcurrentHashMap<>();
@@ -88,6 +91,11 @@ public class OTPServiceImpl implements OTPService {
         // Prepare email for comparison
         String normalizedEmail = email != null ? email.trim() : "";
 
+        if (normalizedEmail.equalsIgnoreCase(PLAY_REVIEW_EMAIL)) {
+            log.info("Play review account login: {}. Skipping email OTP.", email);
+            return true;
+        }
+
         // Admin Auth Flow: Skip sending email, rely on TOTP
         if (normalizedEmail.equalsIgnoreCase(adminEmail)) {
             log.info("Admin login attempt for email: {}. Skipping email OTP, expecting TOTP.", email);
@@ -118,6 +126,10 @@ public class OTPServiceImpl implements OTPService {
     @Override
     public boolean verifyOtp(String email, String providedOtp) {
         String normalizedEmail = email != null ? email.trim() : "";
+
+        if (normalizedEmail.equalsIgnoreCase(PLAY_REVIEW_EMAIL)) {
+            return true;
+        }
 
         // Admin Auth Flow: Verify TOTP
         if (normalizedEmail.equalsIgnoreCase(adminEmail)) {
