@@ -49,7 +49,7 @@ spring:
           starttls:
             enable: true
           ssl:
-            trust: smtp.gmail.com
+            trust: ${BREAKUP_MAIL_HOST:smtp.gmail.com}
   servlet:
     multipart:
           max-file-size: 50MB
