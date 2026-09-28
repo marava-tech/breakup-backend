@@ -20,6 +20,7 @@ public class NoContactSyncRequest {
     private int sosCount;
     private List<SyncMoodCheckIn> checkIns;
     private List<SyncResistedMessage> resistedMessages;
+    private List<SyncSlip> slips;
 
     @Data
     @Builder
@@ -42,5 +43,15 @@ public class NoContactSyncRequest {
         private String content;
         private int urgeLevel;
         private boolean burned;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SyncSlip {
+        private String date;
+        private int streakDays;
+        private String reason;
     }
 }

@@ -22,4 +22,5 @@ public class NoContactSyncResponse {
     private int sosCount;
     private List<NoContactSyncRequest.SyncMoodCheckIn> checkIns;
     private List<NoContactSyncRequest.SyncResistedMessage> resistedMessages;
+    private List<NoContactSyncRequest.SyncSlip> slips;
 }
