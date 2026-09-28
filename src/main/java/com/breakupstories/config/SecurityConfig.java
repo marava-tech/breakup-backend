@@ -62,6 +62,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/stories/*/like").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/stories/*/like").authenticated()
 
+                        // Heal — tracker works signed out; /profile and /sync stay authenticated
+                        .requestMatchers(HttpMethod.GET, "/api/v1/heal/config").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/heal/sos-reality-check").permitAll()
+
                         // Comments — public reads, auth required for writes
                         .requestMatchers(HttpMethod.GET, "/api/comments/story/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/comments").authenticated()
