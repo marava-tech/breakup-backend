@@ -197,6 +197,17 @@ public class HealController {
             doc.setResistedMessages(entries);
         }
 
+        if (request.getSlips() != null) {
+            List<NoContactProfileDocument.SlipEntry> entries = request.getSlips().stream()
+                    .map(s -> NoContactProfileDocument.SlipEntry.builder()
+                            .date(parseIsoDateTime(s.getDate()))
+                            .streakDays(s.getStreakDays())
+                            .reason(s.getReason())
+                            .build())
+                    .collect(Collectors.toList());
+            doc.setSlips(entries);
+        }
+
         doc.setUpdatedAt(LocalDateTime.now());
         NoContactProfileDocument saved = noContactProfileRepository.save(doc);
 
@@ -238,6 +249,16 @@ public class HealController {
                 .collect(Collectors.toList())
                 : new ArrayList<>();
 
+        List<NoContactSyncRequest.SyncSlip> slips = doc.getSlips() != null
+                ? doc.getSlips().stream()
+                .map(s -> NoContactSyncRequest.SyncSlip.builder()
+                        .date(s.getDate() != null ? s.getDate().format(formatter) : null)
+                        .streakDays(s.getStreakDays())
+                        .reason(s.getReason())
+                        .build())
+                .collect(Collectors.toList())
+                : new ArrayList<>();
+
         return NoContactSyncResponse.builder()
                 .success(true)
                 .message(message)
@@ -249,6 +270,7 @@ public class HealController {
                 .sosCount(doc.getSosCount())
                 .checkIns(checkIns)
                 .resistedMessages(messages)
+                .slips(slips)
                 .build();
     }
 }

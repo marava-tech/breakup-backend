@@ -39,6 +39,9 @@ public class NoContactProfileDocument {
     @Builder.Default
     private List<ResistedMessageEntry> resistedMessages = new ArrayList<>();
 
+    @Builder.Default
+    private List<SlipEntry> slips = new ArrayList<>();
+
     private LocalDateTime createdAt;
 
     @LastModifiedDate
@@ -65,5 +68,15 @@ public class NoContactProfileDocument {
         private String content;
         private int urgeLevel;
         private boolean burned;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SlipEntry {
+        private LocalDateTime date;
+        private int streakDays;
+        private String reason;
     }
 }
