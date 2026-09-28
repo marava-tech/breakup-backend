@@ -19,7 +19,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/heal")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class HealController {
 
